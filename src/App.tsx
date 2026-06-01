@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import Services from './components/Services';
@@ -71,6 +72,7 @@ export default function App() {
 
   return (
     <div className="relative font-sans text-[#1A1A1A] flex flex-col min-h-screen bg-[#FAFAF7]">
+      <Analytics />
       {/* Scroll Progress Bar at the top of the viewport */}
       <div 
         role="progressbar"
