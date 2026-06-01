@@ -35,6 +35,18 @@ export default function App() {
     }
   }, []);
 
+  // Invisible, secure backdoor shortcut: Ctrl+Shift+A or Cmd+Shift+A to trigger Admin Panel modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        setIsAdminOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // Monitor scroll progress to drive the custom progress indicator ribbon
   useEffect(() => {
     const handleScrollProgress = () => {
@@ -71,7 +83,7 @@ export default function App() {
       />
       
       {/* Fixed Navigation Header with integrated language switcher */}
-      <Navbar lang={lang} setLang={setLang} logoStyle={logoStyle} onOpenAdmin={() => setIsAdminOpen(true)} />
+      <Navbar lang={lang} setLang={setLang} logoStyle={logoStyle} />
       
       {/* Semantic Main Grid Segment Container */}
       <main id="main-content">
@@ -99,7 +111,7 @@ export default function App() {
       </main>
 
       {/* Semantic Footer segment */}
-      <Footer lang={lang} logoStyle={logoStyle} onOpenAdmin={() => setIsAdminOpen(true)} />
+      <Footer lang={lang} logoStyle={logoStyle} />
 
       {/* Admin Panel Modal Overlay */}
       {isAdminOpen && (

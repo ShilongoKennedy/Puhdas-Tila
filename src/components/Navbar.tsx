@@ -206,7 +206,7 @@ export default function Navbar({ lang, setLang, logoStyle, onOpenAdmin }: Navbar
             </div>
 
             <button
-              onClick={() => handleLinkClick('varaus')}
+               onClick={() => handleLinkClick('varaus')}
               className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-full font-semibold text-sm transition-all duration-305 focus:outline-none cursor-pointer ${
                 isScrolled
                   ? 'bg-[#1B4332] text-white hover:bg-[#2D6A4F] hover:shadow-md'
