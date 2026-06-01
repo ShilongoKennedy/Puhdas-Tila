@@ -232,7 +232,7 @@ export default function Footer({ lang, logoStyle, onOpenAdmin }: FooterProps) {
             <ul className="space-y-4 text-xs sm:text-sm text-left">
               <li className="flex items-center gap-2">
                 <Mail className="w-4.5 h-4.5 text-[#95C4A1] shrink-0" aria-hidden="true" />
-                <a href="mailto:info@puhdastila.fi" className="hover:text-white focus:outline-none">info@puhdastila.fi</a>
+                <a href="mailto:info@puhdas-tila.com" className="hover:text-white focus:outline-none">info@puhdas-tila.com</a>
               </li>
               <li className="flex items-center gap-2">
                 <Phone className="w-4.5 h-4.5 text-[#95C4A1] shrink-0" aria-hidden="true" />

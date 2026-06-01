@@ -97,8 +97,8 @@ export default function BookingForm({ lang, prefilledService = '', prefilledSize
           },
           body: JSON.stringify({
             access_key: accessKey,
-            subject: `Uusi tarjouspyyntö - Puhdastila.fi / ${formData.companyName}`,
-            from_name: 'Puhdastila Kotisivut',
+            subject: `Uusi tarjouspyyntö - puhdas-tila.com / ${formData.companyName}`,
+            from_name: 'Puhdas Tila Kotisivut',
             ...formData,
           }),
         });
@@ -227,14 +227,14 @@ export default function BookingForm({ lang, prefilledService = '', prefilledSize
             {/* Direct Contact Options Info List */}
             <div className="space-y-6 mb-10 text-white/85">
               <a 
-                href="mailto:info@puhdastila.fi" 
+                href="mailto:info@puhdas-tila.com" 
                 className="flex items-center gap-4 hover:text-[#95C4A1] transition-colors group focus:outline-none"
-                aria-label="Lähetä sähköpostia osoitteeseen info@puhdastila.fi"
+                aria-label="Lähetä sähköpostia osoitteeseen info@puhdas-tila.com"
               >
                 <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-[#95C4A1] transition-transform duration-300 group-hover:scale-110">
                   <Mail className="w-4.5 h-4.5" />
                 </div>
-                <span className="font-medium text-sm sm:text-base">info@puhdastila.fi</span>
+                <span className="font-medium text-sm sm:text-base">info@puhdas-tila.com</span>
               </a>
 
               <a 
