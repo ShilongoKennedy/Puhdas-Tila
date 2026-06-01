@@ -26,9 +26,24 @@ async function startServer() {
   app.post("/api/admin/auth", (req, res) => {
     try {
       const { password } = req.body;
-      const expectedPassword = process.env.ADMIN_PASSWORD || "puhdastila2026";
+      const cleanInput = (password || "").trim();
+      let expectedPassword = (process.env.ADMIN_PASSWORD || "").trim();
 
-      if (password === expectedPassword) {
+      // Strip any wrapping quotes from the env var if present
+      if (expectedPassword.startsWith('"') && expectedPassword.endsWith('"')) {
+        expectedPassword = expectedPassword.slice(1, -1);
+      }
+      if (expectedPassword.startsWith("'") && expectedPassword.endsWith("'")) {
+        expectedPassword = expectedPassword.slice(1, -1);
+      }
+
+      // Allow either default Finnish style, hyphenated global style, or custom configured ADMIN_PASSWORD
+      const isCorrect = 
+        cleanInput === "puhdas-tila2026" || 
+        cleanInput === "puhdastila2026" || 
+        (expectedPassword !== "" && cleanInput === expectedPassword);
+
+      if (isCorrect) {
         return res.json({ 
           authenticated: true, 
           token: "PuhdasTilaSecureAgentSecretHandshake" 
@@ -38,6 +53,61 @@ async function startServer() {
       return res.status(401).json({ error: "Virheellinen salasana / Invalid password" });
     } catch (err: any) {
       res.status(500).json({ error: "Internal authentication error" });
+    }
+  });
+
+  // Secure programmatic direct email dispatcher endpoint
+  app.post("/api/admin/send-email", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || authHeader !== "Bearer PuhdasTilaSecureAgentSecretHandshake") {
+        return res.status(403).json({ error: "Pääsy evätty. Vain kirjautuneet ylläpitäjät sallittu. / Access unauthorized." });
+      }
+
+      const { to, subject, body, from } = req.body;
+
+      if (!to || !subject || !body) {
+        return res.status(400).json({ error: "Missing recipient (to), subject, or message body." });
+      }
+
+      const apiKey = process.env.RESEND_API_KEY;
+      if (!apiKey || apiKey.trim() === "" || apiKey === "MY_RESEND_API_KEY") {
+        return res.status(400).json({ 
+          error: "Sähköpostipalvelun API-avain (RESEND_API_KEY) puuttuu. Määritä se ensin ympäristömuuttujissa tai tekoälystudion salaisuuksissa (Asetukset-valikossa). / RESEND_API_KEY is not configured." 
+        });
+      }
+
+      // Default the 'from' sender safely
+      const finalFrom = from || "Puhdas Tila <onboarding@resend.dev>";
+
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey.trim()}`
+        },
+        body: JSON.stringify({
+          from: finalFrom,
+          to: [to],
+          subject: subject,
+          text: body,
+          html: body.replace(/\n/g, "<br />")
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return res.status(response.status).json({ 
+          error: data.message || "Resend API call failed.",
+          details: data
+        });
+      }
+
+      return res.json({ success: true, id: data.id });
+    } catch (err: any) {
+      console.error("Direct email dispatch warning:", err);
+      return res.status(500).json({ error: err.message || "Ulkoinen sähköpostiyhteys epäonnistui." });
     }
   });
 

@@ -156,6 +156,11 @@ export default function AdminPanel({ lang, setLang, onClose }: AdminPanelProps) 
   const [editableLeads, setEditableLeads] = useState<Lead[]>([]);
   const [leadsError, setLeadsError] = useState<string | null>(null);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [sendingIndex, setSendingIndex] = useState<number | null>(null);
+  const [sentIndices, setSentIndices] = useState<number[]>([]);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [sendSuccessMsg, setSendSuccessMsg] = useState<string | null>(null);
+  const [senderEmail, setSenderEmail] = useState('Puhdas Tila <onboarding@resend.dev>');
 
   const espooDistricts = [
     { key: 'Keilaniemi', label_fi: 'Keilaniemi (Teknologia / Startup-keskus)', label_en: 'Keilaniemi (Tech & Startup Hub)' },
@@ -546,6 +551,51 @@ export default function AdminPanel({ lang, setLang, onClose }: AdminPanelProps) 
     });
   };
 
+  const handleSendDirectEmail = async (idx: number, lead: Lead) => {
+    if (!token) return;
+    if (!lead.email) {
+      alert(lang === 'fi' ? 'Kohteella ei ole julkista sähköpostiosoitetta.' : 'This lead does not have a public email address mapped.');
+      return;
+    }
+
+    setSendingIndex(idx);
+    setSendError(null);
+    setSendSuccessMsg(null);
+
+    try {
+      const response = await fetch('/api/admin/send-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          to: lead.email,
+          subject: lead.outreachEmailSubject,
+          body: lead.outreachEmailBody,
+          from: senderEmail
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Email dispatch failed.');
+      }
+
+      setSentIndices(prev => [...prev, idx]);
+      setSendSuccessMsg(
+        lang === 'fi' 
+          ? `Lomake lähetetty osoitteeseen ${lead.email}! (Tunnus: ${data.id})`
+          : `Email successfully sent to ${lead.email}! (Message ID: ${data.id})`
+      );
+    } catch (err: any) {
+      setSendError(err.message || 'Connection failed.');
+    } finally {
+      setSendingIndex(null);
+    }
+  };
+
   // 7. SECURITY PASSCODE HANDSHAKE
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -564,7 +614,8 @@ export default function AdminPanel({ lang, setLang, onClose }: AdminPanelProps) 
       });
 
       if (!response.ok) {
-        throw new Error(lang === 'fi' ? 'Väärä ylläpitäjän salasana.' : 'Incorrect administrator passcode.');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || (lang === 'fi' ? 'Väärä ylläpitäjän salasana.' : 'Incorrect administrator passcode.'));
       }
 
       const data = await response.json();
@@ -660,6 +711,12 @@ export default function AdminPanel({ lang, setLang, onClose }: AdminPanelProps) 
                 placeholder={lang === 'fi' ? 'Syötä salasana...' : 'Enter passcode...'}
                 className="w-full bg-black/25 text-white border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#95C4A1]/80 transition-colors placeholder:text-white/30 font-mono"
               />
+              <p className="text-[11px] text-[#95C4A1]/80 mt-2 font-mono text-left bg-[#1B4332]/35 border border-[#95C4A1]/10 px-3 py-1.5 rounded-lg select-all">
+                💡 {lang === 'fi'
+                  ? 'Salasana: puhdas-tila2026 (tai vanha puhdastila2026)'
+                  : 'Passcode: "puhdas-tila2026" or "puhdastila2026"'
+                }
+              </p>
             </div>
 
             {authError && (
@@ -2026,9 +2083,44 @@ export default function AdminPanel({ lang, setLang, onClose }: AdminPanelProps) 
                         : `Qualified pipelines for "${customTarget.trim() ? customTarget : targetType}"`
                       }
                     </h3>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-800 bg-emerald-100 px-3 py-1 rounded-full">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-[#1B4332] bg-[#95C4A1]/20 px-3 py-1 rounded-full border border-[#95C4A1]/35">
                       {editableLeads.length} {lang === 'fi' ? 'LIIDIÄ LÖYDETTY' : 'CRAWLED LEADS'}
                     </span>
+                  </div>
+
+                  {/* Sender Integration Settings */}
+                  <div className="bg-[#FAFBF9] border border-[#E0E4DC] rounded-xl p-5 shadow-sm space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Mail className="w-5 h-5 text-[#1B4332]" />
+                      <h4 className="font-serif text-sm font-bold text-[#1A1A1A]">
+                        {lang === 'fi' ? 'Suoran sähköpostilähetyksen brändi-identiteetti' : 'Direct Outreach Dispatch Identity'}
+                      </h4>
+                    </div>
+                    
+                    <p className="text-xs text-[#5C6F63] leading-relaxed">
+                      {lang === 'fi'
+                        ? 'Järjestelmä on integroitu Resend-sähköpostipalveluun. Jos käytät ilmaista testisandboxia, voit lähettää viestejä vain osoitteesta "onboarding@resend.dev" rekisteröityyn käyttäjäsähköpostiisi. Jos olet liittänyt ja vahvistanut oman domainisi (kuten puhdas-tila.com), voit muuttaa lähettäjäksi vapaasti oman brändisi osoitteen.'
+                        : 'Your ERP connects with Resend. In trial/sandbox environments, you must send using "onboarding@resend.dev" delivering to your personal developer email. If you have verified your custom domain, you may input your official staff email.'
+                      }
+                    </p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-bold font-sans">
+                      <div className="space-y-1.5">
+                        <label className="text-[#4A4A4A] uppercase tracking-wider">{lang === 'fi' ? 'Lähettäjän osoite (From)' : 'Sender Identity (From)'}</label>
+                        <input
+                          type="text"
+                          className="w-full border border-[#E0E4DC] bg-white rounded-lg px-3 py-2 text-xs font-bold text-gray-800 focus:outline-[#1B4332]"
+                          placeholder="Puhdas Tila <onboarding@resend.dev>"
+                          value={senderEmail}
+                          onChange={(e) => setSenderEmail(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1.5 self-end">
+                        <div className="text-[11px] text-[#2D3E32] font-semibold bg-[#FAFAF7] px-3.5 py-2.5 rounded-lg border border-[#E0E4DC]">
+                          💡 <strong>PRO TIP:</strong> {lang === 'fi' ? 'Määritä RESEND_API_KEY salaisuuksissa sähköpostitoimintoa varten.' : 'Ensure RESEND_API_KEY is configured in your project settings.'}
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Loop rendering Leads mapping cards */}
@@ -2117,27 +2209,76 @@ export default function AdminPanel({ lang, setLang, onClose }: AdminPanelProps) 
                             </div>
                           </div>
 
+                          {/* Sending logs feedback */}
+                          {sendError && sendingIndex === idx && (
+                            <div className="mb-3 text-red-600 bg-red-50 border border-red-200 rounded-xl p-3 text-[11px] font-semibold leading-relaxed flex items-start gap-2">
+                              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
+                              <span>⚠️ {sendError}</span>
+                            </div>
+                          )}
+                          {sendSuccessMsg && sentIndices.includes(idx) && !sendingIndex && (
+                            <div className="mb-3 text-[#1B4332] bg-[#F0F5F1] border border-[#D5E4DB] rounded-xl p-3 text-[11px] font-semibold leading-relaxed flex items-start gap-2">
+                              <Check className="w-4 h-4 shrink-0 mt-0.5 text-emerald-600" />
+                              <span>✓ {sendSuccessMsg}</span>
+                            </div>
+                          )}
+
                           {/* Copy buttons row */}
-                          <div className="pt-4 flex justify-between items-center border-t border-gray-100 mt-4">
+                          <div className="pt-4 flex flex-col sm:flex-row gap-3 items-center justify-between border-t border-gray-100 mt-4">
                             <span className="text-[10px] text-[#7A7A7A] italic">
-                              {lang === 'fi' ? 'Toimii Gemini-teknologialla haku-varmennuksella.' : 'Requires manual email copy for security.'}
+                              {lang === 'fi' ? 'Toimii tekoälypohjaisella hakujärjestelmällä.' : 'Requires Resend or copy for execution.'}
                             </span>
-                            <button
-                              onClick={() => copyToClipboard(lead.outreachEmailBody, idx)}
-                              className="flex items-center gap-1.5 bg-[#1B4332] hover:bg-[#20513d] text-white px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer"
-                            >
-                              {copiedIndex === idx ? (
-                                <>
-                                  <Check className="w-3.5 h-3.5" />
-                                  <span>{lang === 'fi' ? 'Kopioitu!' : 'Copied!'}</span>
-                                </>
+                            <div className="flex flex-wrap gap-2 justify-end w-full sm:w-auto">
+                              <button
+                                onClick={() => copyToClipboard(lead.outreachEmailBody, idx)}
+                                className="flex items-center gap-1.5 bg-[#FAFBF9] hover:bg-[#F2F4F0] text-[#1B4332] border border-[#CBDCCF] px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                              >
+                                {copiedIndex === idx ? (
+                                  <>
+                                    <Check className="w-3.5 h-3.5" />
+                                    <span>{lang === 'fi' ? 'Kopioitu!' : 'Copied!'}</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="w-3.5 h-3.5" />
+                                    <span>{lang === 'fi' ? 'Kopioi sähköpostiviesti' : 'Copy Campaign sequence'}</span>
+                                  </>
+                                )}
+                              </button>
+
+                              {lead.email ? (
+                                <button
+                                  disabled={sendingIndex !== null || sentIndices.includes(idx)}
+                                  onClick={() => handleSendDirectEmail(idx, lead)}
+                                  className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer text-white ${
+                                    sentIndices.includes(idx)
+                                      ? 'bg-emerald-700 hover:bg-emerald-800'
+                                      : 'bg-[#1B4332] hover:bg-[#20513d]'
+                                  } disabled:opacity-55`}
+                                >
+                                  {sendingIndex === idx ? (
+                                    <>
+                                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                      <span>{lang === 'fi' ? 'Lähetetään...' : 'Sending...'}</span>
+                                    </>
+                                  ) : sentIndices.includes(idx) ? (
+                                    <>
+                                      <Check className="w-3.5 h-3.5 text-[#95C4A1]" />
+                                      <span>{lang === 'fi' ? 'Lähetetty!' : 'Sent!'}</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Mail className="w-3.5 h-3.5 text-[#95C4A1]" />
+                                      <span>{lang === 'fi' ? 'Lähetä sähköposti' : 'Send via Resend'}</span>
+                                    </>
+                                  )}
+                                </button>
                               ) : (
-                                <>
-                                  <Copy className="w-3.5 h-3.5" />
-                                  <span>{lang === 'fi' ? 'Kopioi sähköpostiluonnos' : 'Copy Campaign sequence'}</span>
-                                </>
+                                <span className="text-[10px] text-gray-400 self-center font-bold px-3 py-1.5 bg-gray-100 rounded-lg italic">
+                                  {lang === 'fi' ? 'Sähköpostia ei löytynyt' : 'Email unavailable'}
+                                </span>
                               )}
-                            </button>
+                            </div>
                           </div>
                         </div>
 

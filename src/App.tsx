@@ -85,7 +85,7 @@ export default function App() {
       />
       
       {/* Fixed Navigation Header with integrated language switcher */}
-      <Navbar lang={lang} setLang={setLang} logoStyle={logoStyle} />
+      <Navbar lang={lang} setLang={setLang} logoStyle={logoStyle} onOpenAdmin={() => setIsAdminOpen(true)} />
       
       {/* Semantic Main Grid Segment Container */}
       <main id="main-content">
@@ -113,7 +113,7 @@ export default function App() {
       </main>
 
       {/* Semantic Footer segment */}
-      <Footer lang={lang} logoStyle={logoStyle} />
+      <Footer lang={lang} logoStyle={logoStyle} onOpenAdmin={() => setIsAdminOpen(true)} />
 
       {/* Admin Panel Modal Overlay */}
       {isAdminOpen && (
