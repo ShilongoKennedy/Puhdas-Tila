@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import Services from './components/Services';
@@ -117,6 +118,9 @@ export default function App() {
       {isAdminOpen && (
         <AdminPanel lang={lang} setLang={setLang} onClose={() => setIsAdminOpen(false)} />
       )}
+
+      {/* Vercel Web Analytics */}
+      <Analytics />
     </div>
   );
 }
