@@ -1,0 +1,6 @@
+{
+  "name": "Puhdas Tila",
+  "description": "Premium-toimistosiivous ja siivouspalvelut Espoossa ja pääkaupunkiseudulla. Korkealuokkainen laatu ilman pitkiä sitovia sopimuksia.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,237 @@
+@import "tailwindcss";
+
+:root {
+  /* Colors */
+  --color-primary: #1B4332;
+  --color-primary-light: #2D6A4F;
+  --color-primary-dark: #0D2B1E;
+  --color-accent: #95C4A1;
+  --color-accent-warm: #B7E4C7;
+  --color-background: #FAFAF7;
+  --color-surface: #FFFFFF;
+  --color-surface-alt: #F2F4F0;
+  --color-text-primary: #1A1A1A;
+  --color-text-secondary: #4A4A4A;
+  --color-text-muted: #7A7A7A;
+  --color-border: #E0E4DC;
+  --color-success: #40916C;
+  --color-error: #C0392B;
+  --color-white: #FFFFFF;
+  --color-dark: #1B4332;
+
+  /* Typography */
+  --font-heading: 'DM Serif Display', Georgia, serif;
+  --font-body: 'DM Sans', system-ui, sans-serif;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 2rem;
+  --text-4xl: 2.75rem;
+  --text-5xl: 3.75rem;
+  --text-6xl: 5rem;
+
+  /* Spacing */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* Border Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 16px rgba(27,67,50,0.08), 0 2px 8px rgba(27,67,50,0.04);
+  --shadow-lg: 0 12px 40px rgba(27,67,50,0.12), 0 4px 16px rgba(27,67,50,0.06);
+  --shadow-xl: 0 24px 64px rgba(27,67,50,0.16);
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-base: 250ms ease;
+  --transition-slow: 400ms ease;
+  --transition-bounce: 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@theme {
+  --color-primary: var(--color-primary);
+  --color-primary-light: var(--color-primary-light);
+  --color-primary-dark: var(--color-primary-dark);
+  --color-accent: var(--color-accent);
+  --color-accent-warm: var(--color-accent-warm);
+  --color-bg-base: var(--color-background);
+  --color-surface: var(--color-surface);
+  --color-surface-alt: var(--color-surface-alt);
+  
+  --font-sans: "DM Sans", system-ui, sans-serif;
+  --font-serif: "DM Serif Display", Georgia, serif;
+  --font-heading: var(--font-heading);
+  --font-body: var(--font-body);
+
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-full: var(--radius-full);
+}
+
+/* === BASE INPUT STYLING & FOCUS ACCESSIBILITY === */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--color-accent) !important;
+  outline-offset: 3px !important;
+}
+
+/* === ANIMATIONS & TEXTURES === */
+
+/* Noise Grain Overlays */
+.grain-overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.04;
+  pointer-events: none;
+  z-index: 1;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+
+/* Floating Blobs Keyframes */
+@keyframes float-blob-1 {
+  0% { transform: translate(0px, 0px) scale(1); }
+  33% { transform: translate(50px, -40px) scale(1.15); }
+  66% { transform: translate(-30px, 20px) scale(0.9); }
+  100% { transform: translate(0px, 0px) scale(1); }
+}
+
+@keyframes float-blob-2 {
+  0% { transform: translate(0px, 0px) scale(1.1); }
+  33% { transform: translate(-40px, 60px) scale(0.9); }
+  66% { transform: translate(30px, -30px) scale(1.15); }
+  100% { transform: translate(0px, 0px) scale(1.1); }
+}
+
+@keyframes float-blob-3 {
+  0% { transform: translate(0px, 0px) scale(0.9); }
+  50% { transform: translate(45px, 50px) scale(1.2); }
+  100% { transform: translate(0px, 0px) scale(0.9); }
+}
+
+@keyframes float-blob-4 {
+  0% { transform: translate(0px, 0px) scale(1.15); }
+  33% { transform: translate(-50px, -20px) scale(0.95); }
+  66% { transform: translate(40px, 30px) scale(1.1); }
+  100% { transform: translate(0px, 0px) scale(1.15); }
+}
+
+@keyframes float-blob-5 {
+  0% { transform: translate(0px, 0px) scale(1); }
+  50% { transform: translate(-30px, -40px) scale(1.1); }
+  100% { transform: translate(0px, 0px) scale(1); }
+}
+
+.animate-blob-1 { animation: float-blob-1 18s infinite ease-in-out; }
+.animate-blob-2 { animation: float-blob-2 24s infinite ease-in-out; }
+.animate-blob-3 { animation: float-blob-3 30s infinite ease-in-out; }
+.animate-blob-4 { animation: float-blob-4 14s infinite ease-in-out; }
+.animate-blob-5 { animation: float-blob-5 22s infinite ease-in-out; }
+
+/* Wavy Underline Background Animation */
+@keyframes wave-scroll {
+  0% { background-position-x: 0px; }
+  100% { background-position-x: 40px; }
+}
+
+.wavy-underline {
+  position: relative;
+  display: inline-block;
+}
+
+.wavy-underline::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -4px;
+  width: 100%;
+  height: 12px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 9' fill='none'%3E%3Cpath d='M0 4.5C2.5 1.5 5 1.5 7.5 4.5S12.5 7.5 15 4.5S17.5 1.5 20 4.5' stroke='%2395C4A1' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-size: 20px 9px;
+  animation: wave-scroll 2s linear infinite;
+}
+
+/* === SCROLL REVEAL CONFIGURATION === */
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1), transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, opacity;
+}
+
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Active Nav Highlighting style */
+.nav-link {
+  position: relative;
+  transition: color var(--transition-base);
+}
+
+.nav-link::after {
+  content: "";
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  width: 0%;
+  height: 2px;
+  background-color: var(--color-accent);
+  transition: width var(--transition-base), left var(--transition-base);
+}
+
+.nav-link.active::after {
+  width: 100%;
+  left: 0;
+}
+
+.nav-link.active {
+  color: var(--color-accent-warm) !important;
+}
+
+.scrolled .nav-link.active {
+  color: var(--color-primary) !important;
+}
+
+/* SVG Checkmark draw animation */
+@keyframes stroke {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.animate-checkmark-draw {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: stroke 1s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
