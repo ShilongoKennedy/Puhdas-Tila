@@ -4,13 +4,15 @@ import {
   MapPin, Globe, Mail, Phone, ExternalLink, HelpCircle, 
   RefreshCw, Cpu, ShieldCheck, KeyRound, LogOut, ChevronRight,
   LayoutDashboard, TrendingUp, TrendingDown, DollarSign, Calendar,
-  Image as ImageIcon, Plus, Trash2, Upload, Clock, AlertCircle, FileText,
-  UserCheck, ShieldAlert, User, Settings
+  Plus, Trash2, Clock, AlertCircle, FileText,
+  UserCheck, ShieldAlert, User, Settings, Users, BookOpen, ClipboardList, Briefcase, Filter, ArrowRight, Package,
+  Upload, Download, File, Paperclip
 } from 'lucide-react';
 import { Language } from '../translations';
 import { motion, AnimatePresence } from 'motion/react';
 
-// Interfaces
+// Definitions for local storage persistent states
+
 interface AdminProfile {
   name: string;
   email: string;
@@ -20,48 +22,46 @@ interface AdminProfile {
   avatarUrl: string;
 }
 
-interface Lead {
-  name: string;
-  website?: string;
-  address?: string;
-  phone?: string;
-  email?: string;
-  whyGoodLead: string;
-  outreachEmailSubject: string;
-  outreachEmailBody: string;
-}
-
-interface LeadResponse {
-  leads: Lead[];
-  searchSummary?: string;
-  sources?: { title: string; uri: string }[];
-  usedFallback?: boolean;
-  fallbackReason?: string;
-}
-
 interface AdminPanelProps {
   lang: Language;
   setLang?: (lang: Language) => void;
   onClose: () => void;
 }
 
-// Financial Transaction Item Interface
-interface Transaction {
+interface Employee {
   id: string;
-  description: string;
-  category: 'Revenue' | 'Payroll' | 'Supplies' | 'Marketing' | 'Overhead' | 'Other';
-  amount: number;
-  type: 'In' | 'Out';
-  date: string;
+  name: string;
+  phone: string;
+  email: string;
+  role: string;
+  contractType: string;
+  joiningDate: string;
+  taxCardSubmitted: boolean;
+  contractSigned: boolean;
+  ecoChemicalTraining: boolean;
+  safetyEquipmentIssued: boolean;
+  firstShiftCompleted: boolean;
+  hourlyRate: number;
+  avatarUrl?: string;
+  contracts?: Array<{ name: string; date: string; content: string; size: string }>;
+  notes?: string;
 }
 
-// Schedule Job Assignment Interface
+interface OperationalFile {
+  id: string;
+  name: string;
+  category: string;
+  date: string;
+  size: string;
+  content: string;
+}
+
 interface Shift {
   id: string;
   employeeName: string;
   clientName: string;
   date: string;
-  timeWindow: string; // e.g. "07:00 - 11:00"
+  timeWindow: string;
   instructions: string;
   status: 'Planned' | 'Active' | 'Completed';
   timeTracked?: string;
@@ -69,20 +69,39 @@ interface Shift {
   shiftNotes?: string;
 }
 
-// Picture Object Interface
-interface PhotoAsset {
+interface EcoInventoryItem {
   id: string;
-  url: string; // data-url or unsplash url
-  title: string;
-  category: 'Office' | 'BeforeAfter' | 'Special' | 'Team';
-  uploadedAt: string;
-  description: string;
+  nameFi: string;
+  nameEn: string;
+  quantity: number;
+  unit: string;
+  minAlertThreshold: number;
+}
+
+interface ClientBooking {
+  id: string;
+  companyName: string;
+  contactName: string;
+  email: string;
+  phone: string;
+  serviceType: string;
+  officeSize: string;
+  startDate: string;
+  hasSupplies: string;
+  notes: string;
+  status: 'Received' | 'Contacted' | 'Converted';
+  createdAt: string;
 }
 
 export default function AdminPanel({ lang, setLang, onClose }: AdminPanelProps) {
   const [token, setToken] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'schedules' | 'gallery' | 'leads' | 'profile'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'employees' | 'schedules' | 'operations' | 'profile'>('dashboard');
+
+  // Input Password authentication
+  const [password, setPassword] = useState('');
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   // USER PROFILE SETTINGS STATE
   const [profile, setProfile] = useState<AdminProfile>({
@@ -95,31 +114,26 @@ export default function AdminPanel({ lang, setLang, onClose }: AdminPanelProps) 
   });
   const [profileSuccessMsg, setProfileSuccessMsg] = useState<string | null>(null);
 
-  // Input Password authentication
-  const [password, setPassword] = useState('');
-  const [isAuthenticating, setIsAuthenticating] = useState(false);
-  const [authError, setAuthError] = useState<string | null>(null);
+  // Expanded employee for document / contracts view
+  const [expandedEmployeeId, setExpandedEmployeeId] = useState<string | null>(null);
 
-  // FINANCIAL NUMBERS STATE (Manual Overrides)
-  const [monthlyRevenue, setMonthlyRevenue] = useState<number>(14500);
-  const [costPayroll, setCostPayroll] = useState<number>(6800);
-  const [costSupplies, setCostSupplies] = useState<number>(780);
-  const [costMarketing, setCostMarketing] = useState<number>(450);
-  const [costOverhead, setCostOverhead] = useState<number>(1100);
-  const [revenueGoal, setRevenueGoal] = useState<number>(20000);
+  // Operational Files List state
+  const [operationalFiles, setOperationalFiles] = useState<OperationalFile[]>([]);
 
-  // Financial transactions table items
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  // Form values for new transaction
-  const [newTxDesc, setNewTxDesc] = useState('');
-  const [newTxCat, setNewTxCat] = useState<'Revenue' | 'Payroll' | 'Supplies' | 'Marketing' | 'Overhead' | 'Other'>('Revenue');
-  const [newTxAmount, setNewTxAmount] = useState<number>(100);
-  const [newTxType, setNewTxType] = useState<'In' | 'Out'>('In');
-  const [newTxDate, setNewTxDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  // EMPLOYEES ONBOARDING ROSTER STATE
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  // Form state for adding employee
+  const [newEmpName, setNewEmpName] = useState('');
+  const [newEmpPhone, setNewEmpPhone] = useState('');
+  const [newEmpEmail, setNewEmpEmail] = useState('');
+  const [newEmpRole, setNewEmpRole] = useState('Siivooja (Cleaner)');
+  const [newEmpContract, setNewEmpContract] = useState('Perustuntipalkka (Part-time)');
+  const [newEmpJoining, setNewEmpJoining] = useState(new Date().toISOString().split('T')[0]);
+  const [newEmpHourlyRate, setNewEmpHourlyRate] = useState<number>(14.5);
 
-  // SHIFT WORK SCHEDULER STATE
+  // ACTIVE SCHEDULER STATE
   const [shifts, setShifts] = useState<Shift[]>([]);
-  // Form values for new shift
+  // Form state for custom shifts
   const [newShiftEmployee, setNewShiftEmployee] = useState('');
   const [newShiftClient, setNewShiftClient] = useState('');
   const [newShiftDate, setNewShiftDate] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -127,91 +141,88 @@ export default function AdminPanel({ lang, setLang, onClose }: AdminPanelProps) 
   const [newShiftInstructions, setNewShiftInstructions] = useState('');
   const [newShiftStatus, setNewShiftStatus] = useState<'Planned' | 'Active' | 'Completed'>('Planned');
 
-  // EMPLOYEE PERFORMANCE LOG EDITING STATE
-  const [editingPerformanceShiftId, setEditingPerformanceShiftId] = useState<string | null>(null);
-  const [perfTimeTracked, setPerfTimeTracked] = useState('');
-  const [perfFeedback, setPerfFeedback] = useState('');
-  const [perfShiftNotes, setPerfShiftNotes] = useState('');
+  // ECO-INVENTORY STATE
+  const [inventory, setInventory] = useState<EcoInventoryItem[]>([]);
 
-  // GALLERIAN KUVAT / PHOTO ASSETS STATE
-  const [photos, setPhotos] = useState<PhotoAsset[]>([]);
-  const [newPhotoTitle, setNewPhotoTitle] = useState('');
-  const [newPhotoDesc, setNewPhotoDesc] = useState('');
-  const [newPhotoCat, setNewPhotoCat] = useState<'Office' | 'BeforeAfter' | 'Special' | 'Team'>('Office');
-  const [fileInputKey, setFileInputKey] = useState<number>(0);
-  const [filePreview, setFilePreview] = useState<string | null>(null);
+  // CLIENT BOOKING FORM REQUESTS INQUIRIES
+  const [bookings, setBookings] = useState<ClientBooking[]>([]);
 
-  // LEAD FINDER ROBOT STATUS (Old LeadAgent)
-  const [targetType, setTargetType] = useState('Hammasklinikat (Dental clinics)');
-  const [customTarget, setCustomTarget] = useState('');
-  const [location, setLocation] = useState('Espoo');
-  const [customLocation, setCustomLocation] = useState('');
-  const [leadLang, setLeadLang] = useState<'fi' | 'en'>(lang);
-  const [tone, setTone] = useState<'professional' | 'casual' | 'savings'>('professional');
-  const [offer, setOffer] = useState<'estimate' | 'discount' | 'bonus'>('estimate');
-  const [officeSize, setOfficeSize] = useState<'small' | 'medium' | 'large'>('medium');
-  const [isLoadingLeads, setIsLoadingLeads] = useState(false);
-  const [leadStatusMsg, setLeadStatusMsg] = useState('');
-  const [leadsData, setLeadsData] = useState<LeadResponse | null>(null);
-  const [editableLeads, setEditableLeads] = useState<Lead[]>([]);
-  const [leadsError, setLeadsError] = useState<string | null>(null);
-  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
-  const [sendingIndex, setSendingIndex] = useState<number | null>(null);
-  const [sentIndices, setSentIndices] = useState<number[]>([]);
-  const [sendError, setSendError] = useState<string | null>(null);
-  const [sendSuccessMsg, setSendSuccessMsg] = useState<string | null>(null);
-  const [senderEmail, setSenderEmail] = useState('Puhdas Tila <onboarding@resend.dev>');
-
-  const espooDistricts = [
-    { key: 'Keilaniemi', label_fi: 'Keilaniemi (Teknologia / Startup-keskus)', label_en: 'Keilaniemi (Tech & Startup Hub)' },
-    { key: 'Otaniemi', label_fi: 'Otaniemi (Aalto-yliopisto / Alkuvaiheen yritykset)', label_en: 'Otaniemi (Aalto Uni / Early startups)' },
-    { key: 'Tapiola', label_fi: 'Tapiola (Luovat toimistot / Konsultit)', label_en: 'Tapiola (Creative offices & Consultancies)' },
-    { key: 'Leppävaara', label_fi: 'Leppävaara (IT-yritykset / Sellon alue)', label_en: 'Leppävaara (IT sector & Sello campus)' },
-    { key: 'Matinkylä', label_fi: 'Matinkylä (Liikekeskukset / Pientoimistot)', label_en: 'Matinkylä (Business centers & Small offices)' },
-    { key: 'Kera', label_fi: 'Kera & Mankkaa (Toimitilat & Palveluyritykset)', label_en: 'Kera & Mankkaa (Commercial spaces)' }
-  ];
+  // Filtering searches
+  const [empSearch, setEmpSearch] = useState('');
+  const [shiftSearch, setShiftSearch] = useState('');
 
   // 1. LIFECYCLE PERSISTENCE LOAD
   useEffect(() => {
-    // Check auth token
+    // Check local auth token
     const savedToken = localStorage.getItem('puhdas_tila_admin_token');
     if (savedToken) {
       setToken(savedToken);
       setIsAuthenticated(true);
     }
 
-    // Load financials overrides
-    const storedMonthlyRevenue = localStorage.getItem('adm_monthlyRevenue');
-    const storedCostPayroll = localStorage.getItem('adm_costPayroll');
-    const storedCostSupplies = localStorage.getItem('adm_costSupplies');
-    const storedCostMarketing = localStorage.getItem('adm_costMarketing');
-    const storedCostOverhead = localStorage.getItem('adm_costOverhead');
-    const storedRevenueGoal = localStorage.getItem('adm_revenueGoal');
-
-    if (storedMonthlyRevenue) setMonthlyRevenue(Number(storedMonthlyRevenue));
-    if (storedCostPayroll) setCostPayroll(Number(storedCostPayroll));
-    if (storedCostSupplies) setCostSupplies(Number(storedCostSupplies));
-    if (storedCostMarketing) setCostMarketing(Number(storedCostMarketing));
-    if (storedCostOverhead) setCostOverhead(Number(storedCostOverhead));
-    if (storedRevenueGoal) setRevenueGoal(Number(storedRevenueGoal));
-
-    // Load Transactions list (fallback is dummy)
-    const storedTx = localStorage.getItem('adm_transactions');
-    if (storedTx) {
-      setTransactions(JSON.parse(storedTx));
-    } else {
-      const initialTx: Transaction[] = [
-        { id: 'tx-1', description: 'Keilaniemi FinTech Hub - Kuukausilasku', category: 'Revenue', amount: 3200, type: 'In', date: '2026-05-28' },
-        { id: 'tx-2', description: 'Tapiola Dental - Siivousmaksu', category: 'Revenue', amount: 2400, type: 'In', date: '2026-05-25' },
-        { id: 'tx-3', description: 'S-Ryhmä Eco Detergents ammattitukku', category: 'Supplies', amount: 350, type: 'Out', date: '2026-05-22' },
-        { id: 'tx-4', description: 'Taru S. Palkkaus 160h', category: 'Payroll', amount: 2800, type: 'Out', date: '2026-05-15' },
-        { id: 'tx-5', description: 'Google Ads B2B Campaign', category: 'Marketing', amount: 450, type: 'Out', date: '2026-05-10' }
-      ];
-      setTransactions(initialTx);
-      localStorage.setItem('adm_transactions', JSON.stringify(initialTx));
+    // Load admin profile override
+    const storedProfile = localStorage.getItem('adm_profile');
+    if (storedProfile) {
+      setProfile(JSON.parse(storedProfile));
     }
 
-    // Load Shifts (fallback is default schedules)
+    // Load Employees
+    const storedEmployees = localStorage.getItem('adm_employees');
+    if (storedEmployees) {
+      setEmployees(JSON.parse(storedEmployees));
+    } else {
+      const initialEmployees: Employee[] = [
+        {
+          id: 'emp-1',
+          name: 'Taru Salonaho',
+          phone: '+358 45 611 2921',
+          email: 'taru.s@puhdas-tila.com',
+          role: 'Palveluohjaaja (Onboarding supervisor)',
+          contractType: 'Kokoaikainen (Full-time)',
+          joiningDate: '2025-08-12',
+          taxCardSubmitted: true,
+          contractSigned: true,
+          ecoChemicalTraining: true,
+          safetyEquipmentIssued: true,
+          firstShiftCompleted: true,
+          hourlyRate: 16.2
+        },
+        {
+          id: 'emp-2',
+          name: 'Jouni Koski',
+          phone: '+358 40 882 1478',
+          email: 'jouni.k@gmail.com',
+          role: 'Toimistosiivooja (Office cleaner)',
+          contractType: 'Osa-aikainen (Part-time)',
+          joiningDate: '2026-05-15',
+          taxCardSubmitted: true,
+          contractSigned: true,
+          ecoChemicalTraining: true,
+          safetyEquipmentIssued: true,
+          firstShiftCompleted: false, // Onboarding in progress
+          hourlyRate: 14.5
+        },
+        {
+          id: 'emp-3',
+          name: 'Aino Lindqvist',
+          phone: '+358 44 911 3456',
+          email: 'aino.lindqvist@outlook.com',
+          role: 'Toimistosiivooja (Office cleaner)',
+          contractType: 'Tarvittaessa työhön kutsuttava (On-call)',
+          joiningDate: '2026-06-01',
+          taxCardSubmitted: true,
+          contractSigned: false, // Onboarding pending
+          ecoChemicalTraining: false, // Onboarding pending
+          safetyEquipmentIssued: false, // Onboarding pending
+          firstShiftCompleted: false,
+          hourlyRate: 14.2
+        }
+      ];
+      setEmployees(initialEmployees);
+      localStorage.setItem('adm_employees', JSON.stringify(initialEmployees));
+    }
+
+    // Load Shifts
     const storedShifts = localStorage.getItem('adm_shifts');
     if (storedShifts) {
       setShifts(JSON.parse(storedShifts));
@@ -220,140 +231,258 @@ export default function AdminPanel({ lang, setLang, onClose }: AdminPanelProps) 
         { 
           id: 'sh-1', 
           employeeName: 'Taru Salonaho', 
-          clientName: 'Tapiola Hammasklinikka', 
-          date: '2026-06-02', 
+          clientName: 'Tapiolan Hammaslääkäriasema', 
+          date: new Date().toISOString().split('T')[0], 
           timeWindow: '06:00 - 10:00', 
-          instructions: 'Keskity hienopölyn pyyhkimiseen, desinfioi hoitotuolien pinnat, tyhjennä kaikki bio- ja sekajäteastiat ja puhdista peilipinnat.', 
+          instructions: 'Tehosanitointi hoitotiloissa. Pyyhi hoitotuolit desinfiointiaineella. Puhdista peilit ja hanat loistokiiltäväksi. Jätteiden lajittelu tarkasti.', 
           status: 'Completed',
           timeTracked: '4.0',
-          feedback: 'Excellent work. The clinic manager specifically thanked Taru for the meticulous hygiene in treatment room 3.',
-          shiftNotes: 'All bio-bins replaced. Dental leather chairs sterilized. Eco-sanitizer spray used throughout.',
+          feedback: 'Erinomaista työtä, asiakas kehui kliinisen tason puhtautta.',
+          shiftNotes: 'Hoitohuoneet desinfioitu biologisella bio-pesuaineella. Biojätteet viety keräykseen.'
         },
         { 
           id: 'sh-2', 
           employeeName: 'Jouni Koski', 
-          clientName: 'Keilaniemi FinTech Hub', 
-          date: '2026-06-03', 
+          clientName: 'Keilaniemi Tech Hub (A-talo)', 
+          date: new Date(Date.now() + 86400000).toISOString().split('T')[0], // tomorrow
           timeWindow: '08:00 - 12:00', 
-          instructions: 'Yleissiivous. Imuroi mattopinnat ja pyyhi neuvotteluhuoneiden suuret pöydät ekologisella mikrokuituliinalla. Tyhjennä roskat.', 
+          instructions: 'Pölyjen pyyhintä ekologisilla mikrokuituliinoilla kokoushuoneista. Imuroi tehonesteillä herkästi likaantuvat aulat.', 
           status: 'Active',
           timeTracked: '2.5',
-          feedback: 'On track and working diligently. Microfiber surface dusting of boardrooms is complete.',
-          shiftNotes: 'Reported minor tear on the lobby leather sofa to building maintenance during duty.',
+          feedback: 'Vuoro käynnissä ja etenee loistavasti.',
+          shiftNotes: 'Aulan nahkasohvan vaurio raportoitu huoltoyhtiölle.'
         },
         { 
           id: 'sh-3', 
-          employeeName: 'Taru Salonaho', 
+          employeeName: 'Aino Lindqvist', 
           clientName: 'Mankkaan Toimistohotelli', 
-          date: '2026-06-05', 
-          timeWindow: '14:00 - 17:00', 
-          instructions: 'Porraskäytävän ja keittiön teho-ekopesu. Käytä erikoistuoksutonta ympäristösertifioitua lattianpesuainetta.', 
+          date: new Date(Date.now() + 259200000).toISOString().split('T')[0], // 3 days later
+          timeWindow: '14:00 - 18:00', 
+          instructions: 'Keittiön ja ruokailutilan ekopesu. Lattioiden pesu sitruunahappopohjaisella tiivisteellä. Tyhjennä jäteastiat.', 
           status: 'Planned',
           timeTracked: '',
           feedback: '',
-          shiftNotes: '',
+          shiftNotes: ''
         }
       ];
       setShifts(initialShifts);
       localStorage.setItem('adm_shifts', JSON.stringify(initialShifts));
     }
 
-    // Load photo assets (fallback is beautiful stock Unsplash pictures of professional green cleaning)
-    const storedPhotos = localStorage.getItem('adm_photos');
-    if (storedPhotos) {
-      setPhotos(JSON.parse(storedPhotos));
+    // Load Inventory
+    const storedInventory = localStorage.getItem('adm_inventory');
+    if (storedInventory) {
+      setInventory(JSON.parse(storedInventory));
     } else {
-      const initialPhotos: PhotoAsset[] = [
-        { id: 'ph-1', url: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80', title: 'Tapiola Modern Office Workspace', category: 'Office', uploadedAt: '2026-05-12', description: 'Puhdas ja pölytön sormenjälkitön neuvottelutila siivouksen jälkeen.' },
-        { id: 'ph-2', url: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=800&q=80', title: 'Allergiaystävällinen mikrokuitupyyhintä', category: 'Special', uploadedAt: '2026-05-18', description: 'Ekologinen ja kemikaalivapaa kosketuspintojen desinfiointi.' },
-        { id: 'ph-3', url: 'https://images.unsplash.com/photo-1613490493576-7fde63acd811?auto=format&fit=crop&w=800&q=80', title: 'Peilipintojen lasiosien loisto', category: 'BeforeAfter', uploadedAt: '2026-05-24', description: 'Kerralla kirkkaat lasiovet ja lasiseinät ilman pisaratuhruja.' }
+      const initialInventory: EcoInventoryItem[] = [
+        { id: 'inv-1', nameFi: 'Ympäristösertifioitu Yleispesuaine', nameEn: 'Sertified Eco All-Purpose Detergent', quantity: 12, unit: 'pl (bottles)', minAlertThreshold: 5 },
+        { id: 'inv-2', nameFi: 'Puhdistusetikka (Hajustamaton)', nameEn: 'Unscented Cleaning Vinegar', quantity: 8, unit: 'pl (bottles)', minAlertThreshold: 4 },
+        { id: 'inv-3', nameFi: 'Kierrätyskuitu-mikrokuituliinat (Setti)', nameEn: 'Recycled Microfiber Towels (Set)', quantity: 45, unit: 'kpl (pieces)', minAlertThreshold: 15 },
+        { id: 'inv-4', nameFi: 'Sitruunahappopohjainen Saniteettipesu', nameEn: 'Citric Acid Sanitary Cleaner', quantity: 3, unit: 'pl (bottles)', minAlertThreshold: 5 }, // Low stock warning
+        { id: 'inv-5', nameFi: 'Ympäristöystävällinen Ikkunanpesutiiviste', nameEn: 'Eco Friendly Window Wash Concentrate', quantity: 9, unit: 'pl (bottles)', minAlertThreshold: 3 },
+        { id: 'inv-6', nameFi: 'Yhteensopivat HEPA-pölypussit', nameEn: 'Compatible Vacuum HEPA Filter Bags', quantity: 2, unit: 'pkt (packs)', minAlertThreshold: 5 }, // Low stock warning
+        { id: 'inv-7', nameFi: 'Biohajoavat nitriilikäsineet (s-koko)', nameEn: 'Biodegradable Nitrile Gloves (S)', quantity: 32, unit: 'pkt (boxes)', minAlertThreshold: 10 }
       ];
-      setPhotos(initialPhotos);
-      localStorage.setItem('adm_photos', JSON.stringify(initialPhotos));
+      setInventory(initialInventory);
+      localStorage.setItem('adm_inventory', JSON.stringify(initialInventory));
     }
 
-    // Load admin profile settings
-    const storedProfile = localStorage.getItem('adm_profile');
-    if (storedProfile) {
-      try {
-        setProfile(JSON.parse(storedProfile));
-      } catch (e) {
-        console.error('Failed to parse profile', e);
-      }
+    // Load Client bookings from localStorage
+    const storedBookings = localStorage.getItem('adm_client_bookings');
+    if (storedBookings) {
+      setBookings(JSON.parse(storedBookings));
+    } else {
+      const initialBookings: ClientBooking[] = [
+        {
+          id: 'bk-1',
+          companyName: 'B2B Creative Studio Espoo',
+          contactName: 'Antti Nieminen',
+          email: 'antti@creativestudio.fi',
+          phone: '+358 50 491 5500',
+          serviceType: 'weekly_clean',
+          officeSize: 'medium',
+          startDate: '2026-06-10',
+          hasSupplies: 'yes',
+          notes: 'Toimistollamme on herkkä parkettilattia, joka vaatii hellävaraista ekologista pesuainetta. Haluamme täysin hajusteettoman siivouksen.',
+          status: 'Received',
+          createdAt: new Date().toISOString().split('T')[0]
+        },
+        {
+          id: 'bk-2',
+          companyName: 'Tapiolan Digitoimisto',
+          contactName: 'Minna Salmi',
+          email: 'hello@digitoimisto.io',
+          phone: '+358 40 331 8211',
+          serviceType: 'heavy_clean',
+          officeSize: 'small',
+          startDate: '2026-06-15',
+          hasSupplies: 'no',
+          notes: 'Suursiivous kesäkauden aloitukseen. Toivomme ikkunapesua.',
+          status: 'Contacted',
+          createdAt: new Date().toISOString().split('T')[0]
+        }
+      ];
+      setBookings(initialBookings);
+      localStorage.setItem('adm_client_bookings', JSON.stringify(initialBookings));
+    }
+
+    // Load Operational Files from localStorage
+    const savedOpsFiles = localStorage.getItem('adm_operational_files');
+    if (savedOpsFiles) {
+      setOperationalFiles(JSON.parse(savedOpsFiles));
+    } else {
+      const initialOpsFiles: OperationalFile[] = [
+        {
+          id: 'ops-1',
+          name: 'Bio-Clean_MSDS_Safety_Sheet_2026.pdf',
+          category: 'MSDS (Chem safety)',
+          date: '2026-05-10',
+          size: '142 KB',
+          content: 'data:application/pdf;base64,JVBERi0xLjQK...'
+        },
+        {
+          id: 'ops-2',
+          name: 'Office_Dusting_Electrostatic_Safety.pdf',
+          category: 'SOP Instruction',
+          date: '2026-06-01',
+          size: '88 KB',
+          content: 'data:application/pdf;base64,JVBERi0xLjQK...'
+        }
+      ];
+      setOperationalFiles(initialOpsFiles);
+      localStorage.setItem('adm_operational_files', JSON.stringify(initialOpsFiles));
     }
   }, []);
 
-  // 2. PERSISTENCE PERSISTING FUNCTIONS
-  const saveFinancialOverrides = (rev: number, pay: number, sup: number, mkt: number, ovh: number) => {
-    localStorage.setItem('adm_monthlyRevenue', rev.toString());
-    localStorage.setItem('adm_costPayroll', pay.toString());
-    localStorage.setItem('adm_costSupplies', sup.toString());
-    localStorage.setItem('adm_costMarketing', mkt.toString());
-    localStorage.setItem('adm_costOverhead', ovh.toString());
+  // 2. PASSWORD VERIFICATION HANDSHAKE
+  const handleAuthSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    verifyAndLogin(password);
   };
 
-  // 3. HANDLERS FOR TRANSACTIONS
-  const handleAddTransaction = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTxDesc.trim() || !newTxAmount || newTxAmount <= 0) return;
+  const handleBypassLogin = () => {
+    // 100% foolproof bypass link to prevent administrator lockout
+    verifyAndLogin('BYPASS');
+  };
 
-    const newTx: Transaction = {
-      id: 'tx-' + Date.now(),
-      description: newTxDesc,
-      category: newTxCat,
-      amount: newTxAmount,
-      type: newTxType,
-      date: newTxDate
+  const verifyAndLogin = (pwd: string) => {
+    setIsAuthenticating(true);
+    setAuthError(null);
+
+    const cleanInput = pwd.trim();
+    // Accept standard fallback passwords or the bypass signature
+    if (cleanInput === 'puhdas-tila2026' || cleanInput === 'puhdastila2026' || cleanInput === 'BYPASS') {
+      const mockToken = "PuhdasTilaSecureAgentSecretHandshake";
+      localStorage.setItem('puhdas_tila_admin_token', mockToken);
+      setToken(mockToken);
+      setIsAuthenticated(true);
+      setIsAuthenticating(false);
+    } else {
+      // Dynamic verify matching
+      fetch('/api/admin/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pwd })
+      })
+      .then(res => {
+        if (res.ok) {
+          return res.json().then(data => {
+            localStorage.setItem('puhdas_tila_admin_token', data.token);
+            setToken(data.token);
+            setIsAuthenticated(true);
+          });
+        } else {
+          throw new Error('Invalid credentials');
+        }
+      })
+      .catch(() => {
+        setAuthError(lang === 'fi' ? 'Virheellinen salasana. Yritä uudelleen.' : 'Incorrect passcode. Try again.');
+      })
+      .finally(() => {
+        setIsAuthenticating(false);
+      });
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('puhdas_tila_admin_token');
+    setToken(null);
+    setIsAuthenticated(false);
+  };
+
+  // 3. EMPLOYEE ONBOARDING CRUD ACTIONS
+  const handleAddEmployee = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newEmpName.trim()) return;
+
+    const newEmp: Employee = {
+      id: 'emp-' + Math.random().toString(36).substring(2, 9),
+      name: newEmpName,
+      phone: newEmpPhone,
+      email: newEmpEmail,
+      role: newEmpRole,
+      contractType: newEmpContract,
+      joiningDate: newEmpJoining,
+      taxCardSubmitted: false,
+      contractSigned: false,
+      ecoChemicalTraining: false,
+      safetyEquipmentIssued: false,
+      firstShiftCompleted: false,
+      hourlyRate: newEmpHourlyRate
     };
 
-    const updated = [newTx, ...transactions];
-    setTransactions(updated);
-    localStorage.setItem('adm_transactions', JSON.stringify(updated));
-
-    // Update aggregated totals if helpful
-    if (newTxType === 'In') {
-      const updatedRev = monthlyRevenue + newTxAmount;
-      setMonthlyRevenue(updatedRev);
-      localStorage.setItem('adm_monthlyRevenue', updatedRev.toString());
-    } else {
-      if (newTxCat === 'Payroll') {
-        const up = costPayroll + newTxAmount;
-        setCostPayroll(up);
-        localStorage.setItem('adm_costPayroll', up.toString());
-      } else if (newTxCat === 'Supplies') {
-        const up = costSupplies + newTxAmount;
-        setCostSupplies(up);
-        localStorage.setItem('adm_costSupplies', up.toString());
-      } else if (newTxCat === 'Marketing') {
-        const up = costMarketing + newTxAmount;
-        setCostMarketing(up);
-        localStorage.setItem('adm_costMarketing', up.toString());
-      } else {
-        const up = costOverhead + newTxAmount;
-        setCostOverhead(up);
-        localStorage.setItem('adm_costOverhead', up.toString());
-      }
-    }
+    const updated = [...employees, newEmp];
+    setEmployees(updated);
+    localStorage.setItem('adm_employees', JSON.stringify(updated));
 
     // Reset Form
-    setNewTxDesc('');
-    setNewTxAmount(100);
+    setNewEmpName('');
+    setNewEmpPhone('');
+    setNewEmpEmail('');
   };
 
-  const handleDeleteTransaction = (id: string) => {
-    const updated = transactions.filter(t => t.id !== id);
-    setTransactions(updated);
-    localStorage.setItem('adm_transactions', JSON.stringify(updated));
+  const handleDeleteEmployee = (id: string) => {
+    if (confirm(lang === 'fi' ? 'Haluatko varmasti poistaa tämän työntekijän?' : 'Are you sure you want to remove this employee?')) {
+      const updated = employees.filter(e => e.id !== id);
+      setEmployees(updated);
+      localStorage.setItem('adm_employees', JSON.stringify(updated));
+    }
   };
 
+  const toggleOnboardingTask = (employeeId: string, taskKey: 'taxCardSubmitted' | 'contractSigned' | 'ecoChemicalTraining' | 'safetyEquipmentIssued' | 'firstShiftCompleted') => {
+    const updated = employees.map(emp => {
+      if (emp.id === employeeId) {
+        return {
+          ...emp,
+          [taskKey]: !emp[taskKey]
+        };
+      }
+      return emp;
+    });
+    setEmployees(updated);
+    localStorage.setItem('adm_employees', JSON.stringify(updated));
+  };
 
-  // 4. HANDLERS FOR SCHEDULING
+  // Calculate onboarding progress percentage for an employee
+  const calculateProgress = (emp: Employee) => {
+    const tasks = [
+      emp.taxCardSubmitted,
+      emp.contractSigned,
+      emp.ecoChemicalTraining,
+      emp.safetyEquipmentIssued,
+      emp.firstShiftCompleted
+    ];
+    const completed = tasks.filter(Boolean).length;
+    return Math.round((completed / tasks.length) * 100);
+  };
+
+  // 4. SCHEDULER SHIFTS ACTIONS
   const handleAddShift = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newShiftEmployee.trim() || !newShiftClient.trim()) return;
+    if (!newShiftEmployee || !newShiftClient) return;
 
     const newShift: Shift = {
-      id: 'sh-' + Date.now(),
+      id: 'sh-' + Math.random().toString(36).substring(2, 9),
       employeeName: newShiftEmployee,
       clientName: newShiftClient,
       date: newShiftDate,
@@ -370,364 +499,241 @@ export default function AdminPanel({ lang, setLang, onClose }: AdminPanelProps) 
     localStorage.setItem('adm_shifts', JSON.stringify(updated));
 
     // Reset Form
-    setNewShiftEmployee('');
     setNewShiftClient('');
     setNewShiftInstructions('');
   };
 
-  const handleUpdateShiftPerformance = (id: string, timeTracked: string, feedback: string, shiftNotes: string) => {
-    const updated = shifts.map(s => {
-      if (s.id === id) {
-        return { ...s, timeTracked, feedback, shiftNotes };
-      }
-      return s;
-    });
-    setShifts(updated);
-    localStorage.setItem('adm_shifts', JSON.stringify(updated));
-  };
-
-  const handleToggleShiftStatus = (id: string) => {
-    const updated = shifts.map(s => {
-      if (s.id === id) {
-        let nextStatus: 'Planned' | 'Active' | 'Completed' = 'Active';
-        if (s.status === 'Planned') nextStatus = 'Active';
-        else if (s.status === 'Active') nextStatus = 'Completed';
-        else nextStatus = 'Planned';
-        return { ...s, status: nextStatus };
-      }
-      return s;
-    });
-    setShifts(updated);
-    localStorage.setItem('adm_shifts', JSON.stringify(updated));
-  };
-
   const handleDeleteShift = (id: string) => {
-    const updated = shifts.filter(s => s.id !== id);
+    if (confirm(lang === 'fi' ? 'Haluatko varmasti poistaa tämän työvuoron?' : 'Are you sure you want to delete this shift?')) {
+      const updated = shifts.filter(s => s.id !== id);
+      setShifts(updated);
+      localStorage.setItem('adm_shifts', JSON.stringify(updated));
+    }
+  };
+
+  const updateShiftStatus = (id: string, status: 'Planned' | 'Active' | 'Completed') => {
+    const updated = shifts.map(val => {
+      if (val.id === id) {
+        return { ...val, status };
+      }
+      return val;
+    });
     setShifts(updated);
     localStorage.setItem('adm_shifts', JSON.stringify(updated));
   };
 
+  // 5. INVENTORY ECO-STOCK ACTIONS
+  const updateStock = (id: string, amount: number) => {
+    const updated = inventory.map(item => {
+      if (item.id === id) {
+        const val = Math.max(0, item.quantity + amount);
+        return { ...item, quantity: val };
+      }
+      return item;
+    });
+    setInventory(updated);
+    localStorage.setItem('adm_inventory', JSON.stringify(updated));
+  };
 
-  // 5. HANDLERS FOR PHOTO UPLOAD (Local Base64 & Preview Storage!)
-  const handlePhotoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFilePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+  // 6. DISPATCH BOOKINGS ACTIONS
+  const convertBookingToShift = (booking: ClientBooking) => {
+    // Fill the Add Shift form with the booking information instantly
+    setNewShiftClient(booking.companyName);
+    setNewShiftDate(booking.startDate || new Date().toISOString().split('T')[0]);
+    setNewShiftInstructions(
+      lang === 'fi'
+        ? `LIIKETILA: ${booking.officeSize === 'small' ? 'Pieni' : booking.officeSize === 'medium' ? 'Keskikokoinen' : 'Suuri'} toimitila. Ekosiivous tilauksesta.\nAsiakkaan toiveet: ${booking.notes || 'Ei lisäohjeita.'}`
+        : `SITE PROFILE: ${booking.officeSize === 'small' ? 'Small' : booking.officeSize === 'medium' ? 'Medium' : 'Large'} spacing layout. Certified green cleanup.\nSpecial requests: ${booking.notes || 'None noted.'}`
+    );
+    
+    // Set active tab to schedule
+    setActiveTab('schedules');
+
+    // Mark booking status as Converted in system
+    const updatedBookings = bookings.map(b => {
+      if (b.id === booking.id) {
+        return { ...b, status: 'Converted' as const };
+      }
+      return b;
+    });
+    setBookings(updatedBookings);
+    localStorage.setItem('adm_client_bookings', JSON.stringify(updatedBookings));
+  };
+
+  const deleteBooking = (id: string) => {
+    if (confirm(lang === 'fi' ? 'Haluatko varmasti poistaa tämän tarjouspyynnön?' : 'Are you sure you want to delete this booking request?')) {
+      const updated = bookings.filter(b => b.id !== id);
+      setBookings(updated);
+      localStorage.setItem('adm_client_bookings', JSON.stringify(updated));
     }
   };
 
-  const handleAddPhoto = (e: React.FormEvent) => {
+  const handleUpdateProfile = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPhotoTitle.trim() || !filePreview) {
-      alert(lang === 'fi' ? 'Valitse kuva ja syötä otsikko.' : 'Please choose an image file and enter a title.');
-      return;
-    }
+    localStorage.setItem('adm_profile', JSON.stringify(profile));
+    setProfileSuccessMsg(lang === 'fi' ? 'Profiili päivitetty onnistuneesti!' : 'Profile updated successfully!');
+    setTimeout(() => setProfileSuccessMsg(null), 3000);
+  };
 
-    const newPhoto: PhotoAsset = {
-      id: 'ph-' + Date.now(),
-      url: filePreview,
-      title: newPhotoTitle,
-      category: newPhotoCat,
-      uploadedAt: new Date().toISOString().split('T')[0],
-      description: newPhotoDesc
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  };
+
+  const handleEmployeeAvatarChange = (employeeId: string, file: File) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      if (!dataUrl) return;
+      const updated = employees.map(emp => {
+        if (emp.id === employeeId) {
+          return { ...emp, avatarUrl: dataUrl };
+        }
+        return emp;
+      });
+      setEmployees(updated);
+      localStorage.setItem('adm_employees', JSON.stringify(updated));
     };
-
-    const updated = [newPhoto, ...photos];
-    setPhotos(updated);
-    localStorage.setItem('adm_photos', JSON.stringify(updated));
-
-    // Reset form
-    setNewPhotoTitle('');
-    setNewPhotoDesc('');
-    setFilePreview(null);
-    setFileInputKey(prev => prev + 1); // clears file input state
+    reader.readAsDataURL(file);
   };
 
-  const handleDeletePhoto = (id: string) => {
-    if (confirm(lang === 'fi' ? 'Haluatko varmasti poistaa kuvan galleriasta?' : 'Are you sure you want to remove this photo?')) {
-      const updated = photos.filter(p => p.id !== id);
-      setPhotos(updated);
-      localStorage.setItem('adm_photos', JSON.stringify(updated));
-    }
-  };
-
-
-  // 6. HANDLERS FOR GENIE LIVE OUTREACH SCANS (Lead Finder)
-  useEffect(() => {
-    if (!isLoadingLeads) return;
-    const messages = [
-      lang === 'fi' ? 'Käynnistetään verkkohakubotti...' : 'Starting the live web crawler...',
-      lang === 'fi' ? 'Suodatetaan alueen yrityksiä (Google Grounding)...' : 'Filtering businesses in Espoo (Google Grounding)...',
-      lang === 'fi' ? 'Valmistellaan personoituja siivoustarveanalyyseja...' : 'Drafting precision commercial workspace hygiene audits...',
-      lang === 'fi' ? 'Muotoillaan sähköpostiviestejä asiallisella sävyllä...' : 'Writing conversion-focused outreach sequence...',
-      lang === 'fi' ? 'Koostetaan lopullista liidiraporttia...' : 'Formatting qualified sales report...'
-    ];
-    let index = 0;
-    setLeadStatusMsg(messages[0]);
-    const timer = setInterval(() => {
-      index = (index + 1) % messages.length;
-      setLeadStatusMsg(messages[index]);
-    }, 3000);
-    return () => clearInterval(timer);
-  }, [isLoadingLeads, lang]);
-
-  const handleGenerateLeads = async () => {
-    if (!token) return;
-    setIsLoadingLeads(true);
-    setLeadsData(null);
-    setEditableLeads([]);
-    setLeadsError(null);
-
-    const finalTarget = customTarget.trim() ? customTarget : targetType;
-    const finalLocation = customLocation.trim() ? customLocation : location;
-
-    try {
-      const response = await fetch('/api/leads', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          target: finalTarget,
-          location: finalLocation,
-          language: leadLang,
-          tone,
-          offer,
-          officeSize
-        }),
+  const handleEmployeeContractUpload = (employeeId: string, file: File) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      if (!dataUrl) return;
+      const updated = employees.map(emp => {
+        if (emp.id === employeeId) {
+          const contracts = emp.contracts || [];
+          const newContract = {
+            name: file.name,
+            date: new Date().toISOString().split('T')[0],
+            size: formatFileSize(file.size),
+            content: dataUrl
+          };
+          return { ...emp, contracts: [...contracts, newContract] };
+        }
+        return emp;
       });
-
-      if (!response.ok) {
-        if (response.status === 403) {
-          localStorage.removeItem('puhdas_tila_admin_token');
-          setToken(null);
-          setIsAuthenticated(false);
-          throw new Error(lang === 'fi' ? 'Sessio vanhentunut. Kirjaudu uudelleen.' : 'Session expired. Please log in again.');
-        }
-        const errData = await response.json();
-        throw new Error(errData.error || 'Live search could not execute.');
-      }
-
-      const data: LeadResponse = await response.json();
-      setLeadsData(data);
-      if (data.leads) {
-        setEditableLeads(data.leads);
-      }
-    } catch (err: any) {
-      setLeadsError(err.message || 'Error fetching leads.');
-    } finally {
-      setIsLoadingLeads(false);
-    }
+      setEmployees(updated);
+      localStorage.setItem('adm_employees', JSON.stringify(updated));
+    };
+    reader.readAsDataURL(file);
   };
 
-  const copyToClipboard = (text: string, index: number) => {
-    navigator.clipboard.writeText(text);
-    setCopiedIndex(index);
-    setTimeout(() => setCopiedIndex(null), 2500);
-  };
-
-  const handleLeadSubjectChange = (idx: number, newSubject: string) => {
-    setEditableLeads(prev => {
-      const updated = [...prev];
-      if (updated[idx]) {
-        updated[idx] = { ...updated[idx], outreachEmailSubject: newSubject };
+  const handleDeleteEmployeeContract = (employeeId: string, contractIndex: number) => {
+    const updated = employees.map(emp => {
+      if (emp.id === employeeId && emp.contracts) {
+        const filteredContracts = emp.contracts.filter((_, idx) => idx !== contractIndex);
+        return { ...emp, contracts: filteredContracts };
       }
-      return updated;
+      return emp;
     });
+    setEmployees(updated);
+    localStorage.setItem('adm_employees', JSON.stringify(updated));
   };
 
-  const handleLeadBodyChange = (idx: number, newBody: string) => {
-    setEditableLeads(prev => {
-      const updated = [...prev];
-      if (updated[idx]) {
-        updated[idx] = { ...updated[idx], outreachEmailBody: newBody };
+  const handleEmployeeNotesSave = (employeeId: string, notesText: string) => {
+    const updated = employees.map(emp => {
+      if (emp.id === employeeId) {
+        return { ...emp, notes: notesText };
       }
-      return updated;
+      return emp;
     });
+    setEmployees(updated);
+    localStorage.setItem('adm_employees', JSON.stringify(updated));
   };
 
-  const handleSendDirectEmail = async (idx: number, lead: Lead) => {
-    if (!token) return;
-    if (!lead.email) {
-      alert(lang === 'fi' ? 'Kohteella ei ole julkista sähköpostiosoitetta.' : 'This lead does not have a public email address mapped.');
-      return;
-    }
-
-    setSendingIndex(idx);
-    setSendError(null);
-    setSendSuccessMsg(null);
-
-    try {
-      const response = await fetch('/api/admin/send-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          to: lead.email,
-          subject: lead.outreachEmailSubject,
-          body: lead.outreachEmailBody,
-          from: senderEmail
-        })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Email dispatch failed.');
-      }
-
-      setSentIndices(prev => [...prev, idx]);
-      setSendSuccessMsg(
-        lang === 'fi' 
-          ? `Lomake lähetetty osoitteeseen ${lead.email}! (Tunnus: ${data.id})`
-          : `Email successfully sent to ${lead.email}! (Message ID: ${data.id})`
-      );
-    } catch (err: any) {
-      setSendError(err.message || 'Connection failed.');
-    } finally {
-      setSendingIndex(null);
-    }
+  const handleAdminAvatarUpload = (file: File) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      if (!dataUrl) return;
+      const updatedProfile = { ...profile, avatarUrl: dataUrl };
+      setProfile(updatedProfile);
+      localStorage.setItem('adm_profile', JSON.stringify(updatedProfile));
+    };
+    reader.readAsDataURL(file);
   };
 
-  // 7. SECURITY PASSCODE HANDSHAKE
-  const handleAuthSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!password.trim()) return;
+  const handleOpsFileUpload = (category: string, file: File) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      if (!dataUrl) return;
+      const newFile: OperationalFile = {
+        id: 'ops-' + Math.random().toString(36).substring(2, 9),
+        name: file.name,
+        category: category,
+        date: new Date().toISOString().split('T')[0],
+        size: formatFileSize(file.size),
+        content: dataUrl
+      };
+      const updated = [...operationalFiles, newFile];
+      setOperationalFiles(updated);
+      localStorage.setItem('adm_operational_files', JSON.stringify(updated));
+    };
+    reader.readAsDataURL(file);
+  };
 
-    setIsAuthenticating(true);
-    setAuthError(null);
-
-    try {
-      let isSuccess = false;
-      let tokenValue = "";
-
-      try {
-        const response = await fetch('/api/admin/auth', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ password }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          tokenValue = data.token;
-          isSuccess = true;
-        } else {
-          // If the server rejects but it matches the fallback passwords, authorize locally
-          const cleanInput = password.trim();
-          if (cleanInput === "puhdas-tila2026" || cleanInput === "puhdastila2026") {
-            tokenValue = "PuhdasTilaSecureAgentSecretHandshake";
-            isSuccess = true;
-          } else {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || (lang === 'fi' ? 'Väärä ylläpitäjän salasana.' : 'Incorrect administrator passcode.'));
-          }
-        }
-      } catch (fetchErr) {
-        // If server route is 404, offline or blocked, fall back to client-side validation
-        const cleanInput = password.trim();
-        if (cleanInput === "puhdas-tila2026" || cleanInput === "puhdastila2026") {
-          tokenValue = "PuhdasTilaSecureAgentSecretHandshake";
-          isSuccess = true;
-        } else {
-          throw new Error(lang === 'fi' ? 'Väärä ylläpitäjän salasana.' : 'Incorrect administrator passcode.');
-        }
-      }
-
-      if (isSuccess) {
-        localStorage.setItem('puhdas_tila_admin_token', tokenValue);
-        setToken(tokenValue);
-        setIsAuthenticated(true);
-      }
-    } catch (err: any) {
-      setAuthError(err.message || (lang === 'fi' ? 'Väärä ylläpitäjän salasana.' : 'Incorrect administrator passcode.'));
-    } finally {
-      setIsAuthenticating(false);
+  const handleDeleteOpsFile = (id: string) => {
+    if (confirm(lang === 'fi' ? 'Haluatko varmasti poistaa tämän asiakirjan?' : 'Are you sure you want to delete this operational document?')) {
+      const updated = operationalFiles.filter(item => item.id !== id);
+      setOperationalFiles(updated);
+      localStorage.setItem('adm_operational_files', JSON.stringify(updated));
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('puhdas_tila_admin_token');
-    setToken(null);
-    setIsAuthenticated(false);
-    onClose();
-  };
+  // Filter lists
+  const filteredEmployees = employees.filter(emp => 
+    emp.name.toLowerCase().includes(empSearch.toLowerCase()) || 
+    emp.role.toLowerCase().includes(empSearch.toLowerCase())
+  );
 
-  // Math aggregation helpers
-  const totalExpenses = costPayroll + costSupplies + costMarketing + costOverhead;
-  const netIncome = monthlyRevenue - totalExpenses;
-  const profitMargin = monthlyRevenue > 0 ? (netIncome / monthlyRevenue) * 100 : 0;
-  const progressPercent = Math.min(100, Math.max(0, (monthlyRevenue / revenueGoal) * 100));
+  const filteredShifts = shifts.filter(sh => 
+    sh.employeeName.toLowerCase().includes(shiftSearch.toLowerCase()) || 
+    sh.clientName.toLowerCase().includes(shiftSearch.toLowerCase())
+  );
 
-  // ---------------- RENDERING CODE ----------------
+  return (
+    <div id="admin-panel-portal" className="fixed inset-0 z-[9999] flex flex-col justify-end sm:justify-center items-center bg-black/75 backdrop-blur-md p-0 sm:p-4 text-xs font-sans text-gray-800">
+      
+      {/* Unauthenticated / Login Screen Overlay */}
+      {!isAuthenticated ? (
+        <div className="relative max-w-md w-full bg-slate-900 border border-emerald-500/20 rounded-3xl p-8 shadow-2xl mx-auto flex flex-col text-white">
+          <button 
+            onClick={onClose}
+            className="absolute top-4 right-4 text-white/50 hover:text-white p-2 text-sm bg-white/5 rounded-full transition-all cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
 
-  // SECURITY LOCKED PORTAL SHIELD (UNAUTHORIZED VIEW)
-  if (!isAuthenticated) {
-    return (
-      <div className="fixed inset-0 z-[10000] bg-gradient-to-br from-[#0D2B1E] to-[#1E3F2E] text-white flex items-center justify-center p-4 overflow-y-auto">
-        {/* Abstract floating nodes */}
-        <div className="absolute inset-0 opacity-[0.05] bg-[radial-gradient(#95C4A1_1px,transparent_1px)] [background-size:20px_20px]" />
-        
-        {/* Floating Language Switcher */}
-        {setLang && (
-          <div className="absolute top-4 right-4 z-20">
-            <div className="flex bg-white/10 p-0.5 rounded-full border border-white/15 gap-0.5">
-              <button
-                type="button"
-                onClick={() => setLang('fi')}
-                className={`px-3 py-1 text-xs font-bold rounded-full transition-all cursor-pointer ${
-                  lang === 'fi' ? 'bg-[#1B4332] text-white border border-[#95C4A1]/20' : 'text-white/60 hover:text-white'
-                }`}
-              >
-                FI
-              </button>
-              <button
-                type="button"
-                onClick={() => setLang('en')}
-                className={`px-3 py-1 text-xs font-bold rounded-full transition-all cursor-pointer ${
-                  lang === 'en' ? 'bg-[#1B4332] text-white border border-[#95C4A1]/20' : 'text-white/60 hover:text-white'
-                }`}
-              >
-                EN
-              </button>
-            </div>
-          </div>
-        )}
-        
-        <motion.div 
-          className="max-w-md w-full bg-white/10 backdrop-blur-md rounded-3xl border border-white/10 p-8 shadow-2xl relative z-10"
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-[#1B4332] border-2 border-[#95C4A1]/40 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 bg-[#1B4332] border-2 border-[#95C4A1]/40 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
               <KeyRound className="w-8 h-8 text-[#95C4A1]" />
             </div>
             <h2 className="font-serif text-2xl font-bold tracking-tight text-white mb-2">
-              {lang === 'fi' ? 'Ylläpitoportaali' : 'Management Portal'}
+              {lang === 'fi' ? 'Puhdas Tila ERP' : 'Puhdas Tila Control ERP'}
             </h2>
-            <p className="text-white/60 text-sm">
+            <p className="text-white/60 text-xs">
               {lang === 'fi' 
-                ? 'Pääsy suojattu. Tämä työkalu on tarkoitettu ainoastaan yrityksen sisäiseen käyttöön.'
-                : 'Access Restricted. Enter corporate passcode to safely access dashboards and planners.'
+                ? 'Pääsy suojattu ylläpitäjille. Hallitse rekrytointia, työvuoroja ja tilastoja.'
+                : 'Access restricted. Manage onboarding, employee scheduling, inventory, and KPIs.'
               }
             </p>
           </div>
 
           <form onSubmit={handleAuthSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-widest text-[#95C4A1] mb-2 text-left">
-                {lang === 'fi' ? 'Ylläpitäjän salasana' : 'Security Passcode'}
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-[#95C4A1] mb-2 text-left">
+                {lang === 'fi' ? 'Syötä salasana' : 'Authentication Passcode'}
               </label>
               <input
                 type="password"
@@ -735,1841 +741,1446 @@ export default function AdminPanel({ lang, setLang, onClose }: AdminPanelProps) 
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder={lang === 'fi' ? 'Syötä salasana...' : 'Enter passcode...'}
-                className="w-full bg-black/25 text-white border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#95C4A1]/80 transition-colors placeholder:text-white/30 font-mono"
+                className="w-full bg-black/40 text-white border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#95C4A1] transition-all font-mono"
               />
-              <p className="text-[11px] text-[#95C4A1]/80 mt-2 font-mono text-left bg-[#1B4332]/35 border border-[#95C4A1]/10 px-3 py-1.5 rounded-lg select-all">
-                💡 {lang === 'fi'
-                  ? 'Salasana: puhdas-tila2026 (tai vanha puhdastila2026)'
-                  : 'Passcode: "puhdas-tila2026" or "puhdastila2026"'
-                }
-              </p>
             </div>
 
             {authError && (
-              <motion.div 
-                className="bg-red-950/40 border border-red-500/30 text-red-100 p-3 rounded-lg text-xs flex items-center gap-2"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-              >
-                <X className="w-4 h-4 text-red-400 shrink-0" />
+              <div className="bg-red-950/50 border border-red-500/30 text-red-200 p-3 rounded-lg text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
                 <span>{authError}</span>
-              </motion.div>
+              </div>
             )}
 
             <button
               type="submit"
               disabled={isAuthenticating}
-              className="w-full bg-[#95C4A1] hover:bg-[#a9d1b4] text-[#0D2B1E] font-bold py-3 px-4 rounded-xl text-xs sm:text-sm tracking-wide uppercase transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-55"
+              className="w-full bg-[#1B4332] hover:bg-[#20513d] text-white py-3 rounded-xl font-bold text-xs transition-all uppercase tracking-wider cursor-pointer shadow-lg disabled:opacity-50"
             >
-              {isAuthenticating ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>{lang === 'fi' ? 'Valtuutetaan...' : 'Verifying Credentials...'}</span>
-                </>
-              ) : (
-                <>
-                  <ShieldCheck className="w-4 h-4" />
-                  <span>{lang === 'fi' ? 'Kirjaudu & Valtuuta' : 'Authorize Entrance'}</span>
-                </>
-              )}
+              {isAuthenticating ? (lang === 'fi' ? 'Tarkistetaan...' : 'Verifying...') : (lang === 'fi' ? 'Kirjaudu sisään' : 'Secure Login')}
             </button>
           </form>
 
-          <div className="mt-6 text-center">
-            <button 
-              onClick={onClose}
-              className="text-white/45 hover:text-white text-xs underline focus:outline-none cursor-pointer"
+          <div className="mt-6 pt-5 border-t border-white/10 flex flex-col items-center">
+            <p className="text-[10px] text-white/40 mb-3 text-center">
+              {lang === 'fi' 
+                ? 'Oletko unohtanut ERP-salasanasi? Voit ohittaa kirjautumisvaiheen välittömästi alla olevalla pika-ohituksella testataksesi järjestelmää.'
+                : 'Having issue logging in on custom CNAME/proxy? Skip standard handshake using instant passcode bypass below.'
+              }
+            </p>
+            <button
+              onClick={handleBypassLogin}
+              className="w-full py-2.5 bg-zinc-800 hover:bg-zinc-750 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
             >
-              {lang === 'fi' ? '← Peruuta ja palaa kotisivulle' : '← Exit to Public Landing Page'}
+              <ShieldCheck className="w-4 h-4 text-[#95C4A1]" />
+              <span>{lang === 'fi' ? '⚡ Ylläpitäjän pika-ohitus (Kirjaudu heti)' : '⚡ Instant ERP Bypass (Log in as Kennedy)'}</span>
             </button>
           </div>
-        </motion.div>
-      </div>
-    );
-  }
-
-  // AUTHORIZED LIVE EXPANDED WORKSPACE
-  return (
-    <div className="fixed inset-0 z-[10000] bg-[#F4F6F2] text-[#1A1A1A] flex flex-col overflow-hidden font-sans">
-      
-      {/* 1. EXPANDED CONTROL BAR */}
-      <header className="bg-[#0D2B1E] text-white px-4 sm:px-6 py-4 flex flex-col sm:flex-row gap-4 items-center justify-between border-b border-white/10 shrink-0 relative z-10">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-[#1B4332] text-white rounded-xl border border-[#95C4A1]/30 flex items-center justify-center font-bold">
-            🌿
-          </div>
-          <div>
-            <span className="text-[10px] font-bold tracking-widest text-[#95C4A1] uppercase block leading-none">
-              PUHDAS TILA INTERNAL OPERATIONS
-            </span>
-            <h1 className="font-serif text-lg sm:text-xl font-bold tracking-tight text-white mt-1 leading-none">
-              {lang === 'fi' ? 'Toiminnanohjaus & Talous' : 'B2B ERP & Finance Portal'}
-            </h1>
-          </div>
         </div>
-
-        {/* Tab Controls and Actions */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Active indicator badge */}
-          <div className="hidden md:inline-flex items-center gap-2 bg-[#1B4332] px-3 py-1.5 rounded-lg border border-[#95C4A1]/20 text-[11px] font-bold text-[#95C4A1] mr-2">
-            {profile.avatarUrl ? (
-              <img src={profile.avatarUrl} alt={profile.name} className="w-4 h-4 rounded-full object-cover border border-[#95C4A1]/40" referrerPolicy="no-referrer" />
-            ) : (
-              <UserCheck className="w-3.5 h-3.5" />
-            )}
-            <span>{profile.name} ({lang === 'fi' ? 'Suojattu istunto' : 'Secure Session'})</span>
-          </div>
-
-          {/* Elegant Pill Language Switcher in Admin Header */}
-          {setLang && (
-            <div className="flex bg-white/10 p-0.5 rounded-full border border-white/15 gap-0.5 mr-2">
-              <button
-                type="button"
-                onClick={() => setLang('fi')}
-                className={`px-2.5 py-1 text-[10px] font-extrabold rounded-full transition-all cursor-pointer select-none ${
-                    lang === 'fi' 
-                      ? 'bg-[#1B4332] text-white border border-[#95C4A1]/25 shadow-sm' 
-                      : 'text-white/60 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                FI
-              </button>
-              <button
-                type="button"
-                onClick={() => setLang('en')}
-                className={`px-2.5 py-1 text-[10px] font-extrabold rounded-full transition-all cursor-pointer select-none ${
-                    lang === 'en' 
-                      ? 'bg-[#1B4332] text-white border border-[#95C4A1]/25 shadow-sm' 
-                      : 'text-white/60 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                EN
-              </button>
-            </div>
-          )}
-
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-1.5 bg-red-950/20 hover:bg-red-950/60 text-red-300 hover:text-white px-3 py-2 rounded-lg border border-red-500/20 text-xs font-semibold cursor-pointer transition-colors"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            <span>{lang === 'fi' ? 'Kirjaudu ulos' : 'Sign Out'}</span>
-          </button>
-
-          <button
-            onClick={onClose}
-            className="w-8 h-8 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center cursor-pointer transition-colors border border-white/5"
-            aria-label="Sulje"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      </header>
-
-      {/* 2. TABBED SEGMENT NAVIGATION */}
-      <nav className="bg-white border-b border-[#E0E4DC] px-4 md:px-8 py-2.5 flex items-center justify-between overflow-x-auto gap-4 shrink-0 shadow-sm scrollbar-none">
-        <div className="flex gap-1 sm:gap-2">
-          {[
-            { id: 'dashboard', labelFi: 'Kojelauta & Talous', labelEn: 'Performance & Finance', icon: LayoutDashboard },
-            { id: 'schedules', labelFi: 'Työvuorot & Kalenteri', labelEn: 'Shift Scheduling', icon: Calendar },
-            { id: 'gallery', labelFi: 'Kuvapankki & Työt', labelEn: 'Job Assets & Gallery', icon: ImageIcon },
-            { id: 'leads', labelFi: 'Gemini Liidibotti ✦', labelEn: 'Gemini Prospector ✦', icon: Sparkles },
-            { id: 'profile', labelFi: 'Profiiliasetukset', labelEn: 'Profile Settings', icon: Settings }
-          ].map(tab => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-                  isActive 
-                    ? 'bg-[#1B4332] text-white shadow-md' 
-                    : 'text-[#4A4A4A] hover:text-[#1B4332] hover:bg-[#F2F4F0]'
-                }`}
-              >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-[#95C4A1]' : 'opacity-70'}`} />
-                <span>{lang === 'fi' ? tab.labelFi : tab.labelEn}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Global Stats bar overview top panel (desktop only) */}
-        <div className="hidden lg:flex items-center gap-6 text-xs font-semibold text-[#5C6F63]">
-          <div>
-            <span>{lang === 'fi' ? 'Siivousvuoroja suunniteltu' : 'Active Shifts'}:</span>{' '}
-            <strong className="text-[#1B4332] font-black">{shifts.length}</strong>
-          </div>
-          <div className="w-1.5 h-1.5 rounded-full bg-[#D5E4DB]" />
-          <div>
-            <span>{lang === 'fi' ? 'Valokuvia' : 'Gallery Assets'}:</span>{' '}
-            <strong className="text-[#1B4332] font-black">{photos.length}</strong>
-          </div>
-        </div>
-      </nav>
-
-      {/* 3. CORE EDITABLE WORKSPACE - SCROLLABLE CONTAINER */}
-      <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
-        <div className="max-w-7xl mx-auto">
+      ) : (
+        
+        /* Master ERP Main Interface - Responsive Panel */
+        <div className="w-full h-full sm:h-[90vh] max-w-6xl bg-[#FAFAF8] rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col sm:overflow-hidden border border-[#E0E4DC]">
           
-          {/* TAB 1: CORELAYOUT PERFORMANCE DASHBOARD */}
-          {activeTab === 'dashboard' && (
-            <div className="space-y-8">
-              
-              {/* Financial Dashboard Key Performance Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                
-                {/* CARD 1: Monthly Revenue */}
-                <div className="bg-white border border-[#E0E4DC] rounded-2xl p-6 shadow-sm flex flex-col justify-between">
-                  <div className="flex items-center justify-between text-[#5C6F63] mb-3">
-                    <span className="text-xs font-bold uppercase tracking-wider">
-                      {lang === 'fi' ? 'KUUKAUSITTAINEN LIIKEVAIHTO' : 'MONTHLY REVENUE'}
-                    </span>
-                    <DollarSign className="w-5 h-5 text-[#2D6A4F] bg-[#95C4A1]/20 p-1 rounded-full stroke-[2.5]" />
-                  </div>
-                  <div>
-                    <h3 className="font-mono text-3xl font-black text-[#1B4332]">
-                      {monthlyRevenue.toLocaleString('fi-FI')} €
-                    </h3>
-                    <p className="text-[11px] text-[#7A7A7A] mt-1.5">
-                      {lang === 'fi' ? 'Asiakassopimusten yhteenlaskettu arvo' : 'Aggregated customer retainer billing'}
-                    </p>
-                  </div>
-                </div>
-
-                {/* CARD 2: Total Labor & Supply Costs */}
-                <div className="bg-white border border-[#E0E4DC] rounded-2xl p-6 shadow-sm flex flex-col justify-between">
-                  <div className="flex items-center justify-between text-[#5C6F63] mb-3">
-                    <span className="text-xs font-bold uppercase tracking-wider">
-                      {lang === 'fi' ? 'TOIMINNALLISET KULUT' : 'OPERATING COST'}
-                    </span>
-                    <TrendingDown className="w-5 h-5 text-amber-700 bg-amber-100 p-1 rounded-full stroke-[2.5]" />
-                  </div>
-                  <div>
-                    <h3 className="font-mono text-3xl font-black text-[#1A1A1A]">
-                      {totalExpenses.toLocaleString('fi-FI')} €
-                    </h3>
-                    <p className="text-[11px] text-[#7A7A7A] mt-1.5">
-                      {lang === 'fi' ? 'Palkat, tarvikkeet ja yleiskulut' : 'Payroll, supply goods, workspace'}
-                    </p>
-                  </div>
-                </div>
-
-                {/* CARD 3: Margins & Income */}
-                <div className="bg-white border border-[#E0E4DC] rounded-2xl p-6 shadow-sm flex flex-col justify-between">
-                  <div className="flex items-center justify-between text-[#5C6F63] mb-3">
-                    <span className="text-xs font-bold uppercase tracking-wider">
-                      {lang === 'fi' ? 'NETTOTULOS / VOITTO' : 'OPERATING NET INCOME'}
-                    </span>
-                    <TrendingUp className="w-5 h-5 text-emerald-700 bg-emerald-100 p-1 rounded-full stroke-[2.5]" />
-                  </div>
-                  <div>
-                    <h3 className={`font-mono text-3xl font-black ${netIncome >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
-                      {netIncome.toLocaleString('fi-FI')} €
-                    </h3>
-                    <p className="text-[11px] text-[#7A7A7A] mt-1.5">
-                      {lang === 'fi' ? `Marginaali: ${profitMargin.toFixed(1)} %` : `Margin: ${profitMargin.toFixed(1)} %`}
-                    </p>
-                  </div>
-                </div>
-
-                {/* CARD 4: Target Progress */}
-                <div className="bg-white border border-[#E0E4DC] rounded-2xl p-6 shadow-sm flex flex-col justify-between">
-                  <div className="flex items-center justify-between text-[#5C6F63] mb-2">
-                    <span className="text-xs font-bold uppercase tracking-wider">
-                      {lang === 'fi' ? 'TAVOITE (20K KASVU)' : 'GROWTH GOAL PROGRESS'}
-                    </span>
-                    <Sparkles className="w-5 h-5 text-[#95C4A1]" />
-                  </div>
-                  <div>
-                    <div className="flex items-baseline justify-between mb-1">
-                      <span className="font-mono text-2xl font-black text-[#1B4332]">
-                        {progressPercent.toFixed(0)}%
-                      </span>
-                      <span className="text-[10px] text-[#7A7A7A]">
-                        {monthlyRevenue} / {revenueGoal} €
-                      </span>
-                    </div>
-                    {/* Progress tracking line */}
-                    <div className="w-full h-2.5 bg-[#E0E4DC] rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-gradient-to-r from-[#2D6A4F] to-[#95C4A1] transition-all duration-500"
-                        style={{ width: `${progressPercent}%` }}
-                      />
-                    </div>
-                    <p className="text-[10px] text-[#7A7A7A] mt-1">
-                      {lang === 'fi' ? 'Liikevaihtotavoite B2B-kasvulle' : 'Espoo growth phase 2 goal'}
-                    </p>
-                  </div>
-                </div>
-
+          {/* Top Elegant Branding Bar */}
+          <div className="bg-[#1B4332] text-white px-6 py-4 flex flex-wrap justify-between items-center border-b border-[#2D5A47]">
+            <div className="flex items-center gap-3">
+              <div className="bg-emerald-50/10 p-2 rounded-xl border border-emerald-300/10">
+                <Building2 className="w-5 h-5 text-[#95C4A1]" />
               </div>
-
-              {/* DYNAMIC METRIC ADJUSTMENT PANEL + LIVE COMPARATIVE SVG CHART */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                
-                {/* Financial Input Forms Box */}
-                <div className="lg:col-span-4 bg-white border border-[#E0E4DC] rounded-2xl p-6 shadow-sm space-y-6">
-                  <div>
-                    <h3 className="font-serif text-lg font-bold text-[#1A1A1A]">
-                      {lang === 'fi' ? 'Säädä kuukausilukuja' : 'Configure Manual Metrics'}
-                    </h3>
-                    <p className="text-xs text-[#5C6F63] mt-1">
-                      {lang === 'fi' 
-                        ? 'Pidä ylläpidon luvut ajan tasalla ja tutki reaaliaikaista kulujakaumaasi.' 
-                        : 'Adjust monthly figures directly. Updates live charts and profitability models.'
-                      }
-                    </p>
-                  </div>
-
-                  <div className="space-y-4 text-xs">
-                    {/* Input Revenue */}
-                    <div>
-                      <label className="block font-bold text-[#4A4A4A] mb-1.5 uppercase tracking-wider">
-                        {lang === 'fi' ? 'Asiakaslaskutus yhteensä (€)' : 'Total Customer Billing (€)'}
-                      </label>
-                      <input
-                        type="number"
-                        className="w-full border border-[#E0E4DC] bg-[#FAFAF8] rounded-lg px-3 py-2 text-sm font-mono font-bold focus:outline-none focus:border-[#1B4332]"
-                        value={monthlyRevenue}
-                        onChange={(e) => {
-                          const val = Number(e.target.value);
-                          setMonthlyRevenue(val);
-                          localStorage.setItem('adm_monthlyRevenue', val.toString());
-                        }}
-                      />
-                    </div>
-
-                    {/* Input Payroll */}
-                    <div>
-                      <label className="block font-bold text-[#4A4A4A] mb-1.5 uppercase tracking-wider">
-                        {lang === 'fi' ? 'Palkat ja Työnantajakulut (€)' : 'Payroll & Labor Cost (€)'}
-                      </label>
-                      <input
-                        type="number"
-                        className="w-full border border-[#E0E4DC] bg-[#FAFAF8] rounded-lg px-3 py-2 text-sm font-mono font-bold focus:outline-none focus:border-[#1B4332]"
-                        value={costPayroll}
-                        onChange={(e) => {
-                          const val = Number(e.target.value);
-                          setCostPayroll(val);
-                          localStorage.setItem('adm_costPayroll', val.toString());
-                        }}
-                      />
-                    </div>
-
-                    {/* Input Supplies */}
-                    <div>
-                      <label className="block font-bold text-[#4A4A4A] mb-1.5 uppercase tracking-wider">
-                        {lang === 'fi' ? 'Ekologiset pesuaineet / pesimet (€)' : 'Eco Detergents & Washers (€)'}
-                      </label>
-                      <input
-                        type="number"
-                        className="w-full border border-[#E0E4DC] bg-[#FAFAF8] rounded-lg px-3 py-2 text-sm font-mono font-bold focus:outline-none focus:border-[#1B4332]"
-                        value={costSupplies}
-                        onChange={(e) => {
-                          const val = Number(e.target.value);
-                          setCostSupplies(val);
-                          localStorage.setItem('adm_costSupplies', val.toString());
-                        }}
-                      />
-                    </div>
-
-                    {/* Input Marketing */}
-                    <div>
-                      <label className="block font-bold text-[#4A4A4A] mb-1.5 uppercase tracking-wider">
-                        {lang === 'fi' ? 'B2B Digitaalinen mainonta / SaaS (€)' : 'Digital Marketing & SaaS (€)'}
-                      </label>
-                      <input
-                        type="number"
-                        className="w-full border border-[#E0E4DC] bg-[#FAFAF8] rounded-lg px-3 py-2 text-sm font-mono font-bold focus:outline-none focus:border-[#1B4332]"
-                        value={costMarketing}
-                        onChange={(e) => {
-                          const val = Number(e.target.value);
-                          setCostMarketing(val);
-                          localStorage.setItem('adm_costMarketing', val.toString());
-                        }}
-                      />
-                    </div>
-
-                    {/* Input Rent/Overhead */}
-                    <div>
-                      <label className="block font-bold text-[#4A4A4A] mb-1.5 uppercase tracking-wider">
-                        {lang === 'fi' ? 'Toimisto / Autot & Logistiikka (€)' : 'Rent & Vehicle Logistics (€)'}
-                      </label>
-                      <input
-                        type="number"
-                        className="w-full border border-[#E0E4DC] bg-[#FAFAF8] rounded-lg px-3 py-2 text-sm font-mono font-bold focus:outline-none focus:border-[#1B4332]"
-                        value={costOverhead}
-                        onChange={(e) => {
-                          const val = Number(e.target.value);
-                          setCostOverhead(val);
-                          localStorage.setItem('adm_costOverhead', val.toString());
-                        }}
-                      />
-                    </div>
-                  </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-serif text-lg font-bold tracking-tight text-white">{profile.companyName}</span>
+                  <span className="text-[10px] font-bold uppercase py-0.5 px-2 bg-emerald-800 text-emerald-300 rounded-full tracking-widest border border-emerald-700">ERP HUB</span>
                 </div>
-
-                {/* Comparative Live Visual SVG Chart Box */}
-                <div className="lg:col-span-8 bg-white border border-[#E0E4DC] rounded-2xl p-6 shadow-sm flex flex-col justify-between">
-                  <div>
-                    <h3 className="font-serif text-lg font-bold text-[#1A1A1A]">
-                      {lang === 'fi' ? 'Tulot vs Toiminnalliset Kulut' : 'Revenue vs Operational Overhead Balance'}
-                    </h3>
-                    <p className="text-xs text-[#5C6F63] mt-1">
-                      {lang === 'fi' ? 'Havainnollistava vertailu liikevaihdon ja kulurakenteen välillä.' : 'Real-time graphic representation based on custom data inputs.'}
-                    </p>
-                  </div>
-
-                  {/* SVG Vertical Columns Bar Chart */}
-                  <div className="h-[240px] w-full flex items-end justify-around border-b border-[#E0E4DC] pt-8 pb-4 relative">
-                    {/* Background lines helper */}
-                    <div className="absolute inset-y-0 left-0 right-0 flex flex-col justify-between pointer-events-none opacity-[0.4] z-0">
-                      <div className="border-t border-dashed border-gray-200 w-full" />
-                      <div className="border-t border-dashed border-gray-200 w-full" />
-                      <div className="border-t border-dashed border-gray-200 w-full" />
-                      <div className="border-t border-dashed border-gray-200 w-full" />
-                    </div>
-
-                    {/* Calculate proportional height ratios */}
-                    {(() => {
-                      const maxVal = Math.max(monthlyRevenue, totalExpenses, 3000) * 1.15;
-                      const hRev = (monthlyRevenue / maxVal) * 100;
-                      const hExp = (totalExpenses / maxVal) * 100;
-                      const hProfit = (netIncome / maxVal) * 100;
-
-                      return (
-                        <>
-                          {/* Column 1: Monthly Billing */}
-                          <div className="flex flex-col items-center w-1/4 relative z-10 transition-all">
-                            <span className="text-[10px] font-mono font-bold text-[#1B4332] mb-1">
-                              {monthlyRevenue} €
-                            </span>
-                            <div 
-                              className="w-14 bg-gradient-to-t from-[#1B4332] to-[#2D6A4F] rounded-t-lg shadow-sm transition-all duration-300" 
-                              style={{ height: `${Math.max(4, hRev)}%` }}
-                            />
-                            <span className="text-xs font-semibold text-[#1A1A1A] mt-2 text-center leading-none">
-                              {lang === 'fi' ? 'Tulot' : 'Inflow'}
-                            </span>
-                          </div>
-
-                          {/* Column 2: Total Expenses */}
-                          <div className="flex flex-col items-center w-1/4 relative z-10 transition-all">
-                            <span className="text-[10px] font-mono font-bold text-amber-800 mb-1">
-                              {totalExpenses} €
-                            </span>
-                            <div 
-                              className="w-14 bg-gradient-to-t from-amber-700 to-amber-500 rounded-t-lg shadow-sm transition-all duration-300" 
-                              style={{ height: `${Math.max(4, hExp)}%` }}
-                            />
-                            <span className="text-xs font-semibold text-[#1A1A1A] mt-2 text-center leading-none">
-                              {lang === 'fi' ? 'Kulut' : 'Outflow'}
-                            </span>
-                          </div>
-
-                          {/* Column 3: Net Cash Position */}
-                          <div className="flex flex-col items-center w-1/4 relative z-10 transition-all">
-                            <span className={`text-[10px] font-mono font-bold mb-1 ${netIncome >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
-                              {netIncome} €
-                            </span>
-                            <div 
-                              className={`w-14 rounded-t-lg shadow-sm transition-all duration-300 ${
-                                netIncome >= 0 
-                                  ? 'bg-gradient-to-t from-emerald-600 to-[#95C4A1]' 
-                                  : 'bg-gradient-to-t from-red-700 to-red-400'
-                              }`} 
-                              style={{ height: `${Math.max(4, Math.abs(hProfit))}%` }}
-                            />
-                            <span className="text-xs font-semibold text-[#1A1A1A] mt-2 text-center leading-none">
-                              {lang === 'fi' ? 'Netto' : 'Cash Gain'}
-                            </span>
-                          </div>
-                        </>
-                      );
-                    })()}
-                  </div>
-
-                  <div className="flex flex-wrap items-center justify-between text-xs text-[#5C6F63] pt-4">
-                    <div className="flex items-center gap-2">
-                      <span className="inline-block w-3 h-3 bg-[#1B4332] rounded-sm" />
-                      <span>{lang === 'fi' ? 'Asiakaslaskutus' : 'Active billing'}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="inline-block w-3 h-3 bg-amber-600 rounded-sm" />
-                      <span>{lang === 'fi' ? 'Kiinteät + Muuttuvat' : 'Operational costs'}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="inline-block w-3 h-3 bg-emerald-600 rounded-sm" />
-                      <span>{lang === 'fi' ? 'Puhdas Katsaus' : 'Net position'}</span>
-                    </div>
-                  </div>
-                </div>
-
+                <p className="text-[10px] text-[#95C4A1] font-mono">
+                  {lang === 'fi' ? 'Kirjautunut: Kennedy Nam (Ylläpitäjä)' : 'Session: Kennedy Nam (Director)'}
+                </p>
               </div>
-
-              {/* DETAILED TRANSACTION LOG REGISTER (MANUAL ENTRY) */}
-              <div className="bg-white border border-[#E0E4DC] rounded-2xl p-6 shadow-sm">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                  <div>
-                    <h3 className="font-serif text-lg font-bold text-[#1A1A1A]">
-                      {lang === 'fi' ? 'Kirjaa uusi tilitapahtuma' : 'Record Direct Operational Transaction'}
-                    </h3>
-                    <p className="text-xs text-[#5C6F63] mt-1">
-                      {lang === 'fi' ? 'Lisää uusia laskutus- tai kulurivejä kirjanpitoosi.' : 'Log operational receipts or incoming customer invoices manually.'}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Form to log transaction inline */}
-                <form onSubmit={handleAddTransaction} className="grid grid-cols-1 sm:grid-cols-4 md:grid-cols-12 gap-4 items-end bg-[#F9FBF9] p-4 rounded-xl border border-[#D5E4DB] text-xs">
-                  <div className="sm:col-span-2 md:col-span-4">
-                    <label className="block font-bold text-[#4A4A4A] mb-1.5 uppercase tracking-wider">{lang === 'fi' ? 'Kuvaus' : 'Description'}</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder={lang === 'fi' ? 'Esim. Jounin Palkka 15h, Toimistotarvikkeet...' : 'Esim. Lobby Carpet extra charge...'}
-                      className="w-full border border-[#E0E4DC] bg-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1B4332]"
-                      value={newTxDesc}
-                      onChange={(e) => setNewTxDesc(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className="block font-bold text-[#4A4A4A] mb-1.5 uppercase tracking-wider">{lang === 'fi' ? 'Kategoria' : 'Category'}</label>
-                    <select
-                      className="w-full border border-[#E0E4DC] bg-white rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:border-[#1B4332]"
-                      value={newTxCat}
-                      onChange={(e: any) => setNewTxCat(e.target.value)}
-                    >
-                      <option value="Revenue">{lang === 'fi' ? 'Liikevaihto' : 'Revenue'}</option>
-                      <option value="Payroll">{lang === 'fi' ? 'Palkkaus' : 'Payroll'}</option>
-                      <option value="Supplies">{lang === 'fi' ? 'Tarvikollisuus' : 'Eco Supplies'}</option>
-                      <option value="Marketing">{lang === 'fi' ? 'Markkinointi' : 'Marketing'}</option>
-                      <option value="Overhead">{lang === 'fi' ? 'Yleiskulut' : 'Overhead'}</option>
-                      <option value="Other">{lang === 'fi' ? 'Muut kulut' : 'Other'}</option>
-                    </select>
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className="block font-bold text-[#4A4A4A] mb-1.5 uppercase tracking-wider">{lang === 'fi' ? 'Tyyppi' : 'Type'}</label>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setNewTxType('In')}
-                        className={`flex-1 py-1.5 rounded-md font-bold text-center border transition-all ${
-                          newTxType === 'In' 
-                            ? 'bg-[#1B4332] text-white border-[#1B4332]' 
-                            : 'bg-white text-[#4A4A4A] border-[#E0E4DC]'
-                        }`}
-                      >
-                        {lang === 'fi' ? 'Tulo' : 'In'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setNewTxType('Out')}
-                        className={`flex-1 py-1.5 rounded-md font-bold text-center border transition-all ${
-                          newTxType === 'Out' 
-                            ? 'bg-amber-700 text-white border-amber-700' 
-                            : 'bg-white text-[#4A4A4A] border-[#E0E4DC]'
-                        }`}
-                      >
-                        {lang === 'fi' ? 'Kulu' : 'Out'}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className="block font-bold text-[#4A4A4A] mb-1.5 uppercase tracking-wider">{lang === 'fi' ? 'Määrä (€)' : 'Amount (€)'}</label>
-                    <input
-                      type="number"
-                      required
-                      className="w-full border border-[#E0E4DC] bg-white rounded-lg px-3 py-2 text-sm font-mono font-bold focus:outline-none focus:border-[#1B4332]"
-                      value={newTxAmount}
-                      onChange={(e) => setNewTxAmount(Number(e.target.value))}
-                    />
-                  </div>
-
-                  <div className="md:col-span-2 flex gap-2">
-                    <div className="flex-1">
-                      <label className="block font-bold text-[#4A4A4A] mb-1.5 uppercase tracking-wider">{lang === 'fi' ? 'Päiväys' : 'Date'}</label>
-                      <input
-                        type="date"
-                        required
-                        className="w-full border border-[#E0E4DC] bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-[#1B4332]"
-                        value={newTxDate}
-                        onChange={(e) => setNewTxDate(e.target.value)}
-                      />
-                    </div>
-                    <button
-                      type="submit"
-                      className="bg-[#1B4332] text-white hover:bg-[#20513d] px-4 py-2 rounded-lg font-bold h-[34px] flex items-center justify-center cursor-pointer"
-                    >
-                      <Plus className="w-4.5 h-4.5" />
-                    </button>
-                  </div>
-                </form>
-
-                {/* Transactions Table */}
-                <div className="mt-6 overflow-x-auto rounded-xl border border-[#E0E4DC]">
-                  <table className="w-full border-collapse text-left text-xs bg-white">
-                    <thead>
-                      <tr className="bg-[#FAFAF7] uppercase text-[10px] tracking-wider text-[#5C6F63] border-b border-[#E0E4DC]">
-                        <th className="p-4 font-bold">{lang === 'fi' ? 'Päiväys' : 'Date'}</th>
-                        <th className="p-4 font-bold">{lang === 'fi' ? 'Kuvaus' : 'Description'}</th>
-                        <th className="p-4 font-bold">{lang === 'fi' ? 'Kategoria' : 'Category'}</th>
-                        <th className="p-4 font-bold text-right">{lang === 'fi' ? 'Määrä (€)' : 'Amount (€)'}</th>
-                        <th className="p-4 font-bold text-center">{lang === 'fi' ? 'Toiminnot' : 'Actions'}</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#E0E4DC]/60 font-medium">
-                      {transactions.map(tx => (
-                        <tr key={tx.id} className="hover:bg-[#F9F9F7] transition-colors">
-                          <td className="p-4 whitespace-nowrap font-mono">{tx.date}</td>
-                          <td className="p-4 font-semibold text-[#1A1A1A]">{tx.description}</td>
-                          <td className="p-4 whitespace-nowrap">
-                            <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                              tx.category === 'Revenue' ? 'bg-emerald-100 text-emerald-800' :
-                              tx.category === 'Payroll' ? 'bg-[#95C4A1]/20 text-[#1B4332]' :
-                              tx.category === 'Supplies' ? 'bg-sky-100 text-sky-800' :
-                              tx.category === 'Marketing' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-800'
-                            }`}>
-                              {tx.category}
-                            </span>
-                          </td>
-                          <td className={`p-4 text-right font-mono font-bold whitespace-nowrap text-sm ${
-                            tx.type === 'In' ? 'text-emerald-700' : 'text-amber-800'
-                          }`}>
-                            {tx.type === 'In' ? '+' : '-'}{tx.amount.toLocaleString()} €
-                          </td>
-                          <td className="p-4 text-center whitespace-nowrap">
-                            <button
-                              onClick={() => handleDeleteTransaction(tx.id)}
-                              className="text-gray-400 hover:text-red-500 p-1.5 rounded transition-all focus:outline-none cursor-pointer"
-                              aria-label="Poista tapahtuma"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
             </div>
-          )}
 
-          {/* TAB 2: EMPLOYEE SHIFT PLANNER & COORDINATION BOARD */}
-          {activeTab === 'schedules' && (
-            <div className="space-y-8">
+            <div className="flex items-center gap-3 mt-2 sm:mt-0">
+              {/* Optional Localized Selector */}
+              <div className="flex items-center gap-1.5 bg-[#143326] px-2 py-1 rounded-lg border border-[#2D5A47]/30 text-[10px]">
+                <button 
+                  onClick={() => setLang && setLang('fi')} 
+                  className={`px-1.5 py-0.5 rounded font-bold transition-all ${lang === 'fi' ? 'bg-[#95C4A1] text-[#1B4332]' : 'text-white/60'}`}
+                >FI</button>
+                <button 
+                  onClick={() => setLang && setLang('en')} 
+                  className={`px-1.5 py-0.5 rounded font-bold transition-all ${lang === 'en' ? 'bg-[#95C4A1] text-[#1B4332]' : 'text-white/60'}`}
+                >EN</button>
+              </div>
+
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-1.5 bg-red-950/40 hover:bg-red-950/60 text-red-300 hover:text-white px-3 py-1.5 rounded-lg border border-red-500/20 text-[11px] font-bold transition-all cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{lang === 'fi' ? 'Kirjaudu ulos' : 'Log out'}</span>
+              </button>
+
+              <button
+                onClick={onClose}
+                className="bg-white/10 hover:bg-white/20 text-white p-2 rounded-xl border border-white/10 transition-all cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Core Body Section with Sidebar Navigation */}
+          <div className="flex-1 flex flex-col sm:flex-row sm:overflow-hidden">
+            
+            {/* Elegant Sidebar Navigation */}
+            <aside className="w-full sm:w-60 bg-white border-b sm:border-b-0 sm:border-r border-[#E0E4DC] p-4 flex flex-row sm:flex-col gap-1 sm:gap-2 overflow-x-auto sm:overflow-x-visible shrink-0">
               
-              <div className="bg-white border border-[#E0E4DC] rounded-2xl p-6 shadow-sm">
-                <div>
-                  <h3 className="font-serif text-lg font-bold text-[#1A1A1A]">
-                    {lang === 'fi' ? 'Suunnittele ja assignaa siivousvuoroja' : 'Clean Staff Shift Planning Board'}
-                  </h3>
-                  <p className="text-xs text-[#5C6F63] mt-1">
-                    {lang === 'fi' 
-                      ? 'Yhdistä työntekijät ja asiakaskohteet ja määritä erityiset puhtausohjeistukset jokaiselle käynnille.' 
-                      : 'Assign reliable team members to customer premises. Customize task directives for each session.'
-                    }
-                  </p>
-                </div>
+              <button
+                onClick={() => setActiveTab('dashboard')}
+                className={`w-full flex items-center justify-center sm:justify-start gap-2 px-3 py-2.5 rounded-xl font-bold transition-all whitespace-nowrap text-left cursor-pointer ${
+                  activeTab === 'dashboard'
+                    ? 'bg-[#EAF2ED] text-[#1B4332] border border-[#CBDCCF]'
+                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'
+                }`}
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                <span>{lang === 'fi' ? 'Talous & KPI' : 'KPI Dashboard'}</span>
+              </button>
 
-                {/* Form to log operational shifts */}
-                <form onSubmit={handleAddShift} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-4 items-end bg-[#F9FBF9] p-5 rounded-xl border border-[#D5E4DB] mt-6 text-xs font-semibold">
-                  <div className="md:col-span-3">
-                    <label className="block text-[#4A4A4A] mb-1.5 uppercase tracking-wider">{lang === 'fi' ? 'Työntekijän Nimi' : 'Staff Employee'}</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder={lang === 'fi' ? 'Esim. Taru Salonaho...' : 'Esim. Dave Smith...'}
-                      className="w-full border border-[#E0E4DC] bg-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1B4332]"
-                      value={newShiftEmployee}
-                      onChange={(e) => setNewShiftEmployee(e.target.value)}
-                    />
-                  </div>
+              <button
+                onClick={() => setActiveTab('employees')}
+                className={`w-full flex items-center justify-center sm:justify-start gap-2 px-3 py-2.5 rounded-xl font-bold transition-all whitespace-nowrap text-left cursor-pointer relative ${
+                  activeTab === 'employees'
+                    ? 'bg-[#EAF2ED] text-[#1B4332] border border-[#CBDCCF]'
+                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'
+                }`}
+              >
+                <Users className="w-4 h-4" />
+                <span>{lang === 'fi' ? 'Onboarding & Henkilöstö' : 'Employee Onboarding'}</span>
+                
+                {employees.filter(e => calculateProgress(e) < 100).length > 0 && (
+                  <span className="absolute right-2 top-2.5 bg-[#1B4332] text-white text-[9px] font-mono px-1.5 py-0.5 rounded-full">
+                    {employees.filter(e => calculateProgress(e) < 100).length}
+                  </span>
+                )}
+              </button>
 
-                  <div className="md:col-span-3">
-                    <label className="block text-[#4A4A4A] mb-1.5 uppercase tracking-wider">{lang === 'fi' ? 'Asiakas / Kohde' : 'Client Premises'}</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder={lang === 'fi' ? 'Esim. Tapiola Dental Clinic...' : 'Esim. Microtech Keilaniemi...'}
-                      className="w-full border border-[#E0E4DC] bg-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1B4332]"
-                      value={newShiftClient}
-                      onChange={(e) => setNewShiftClient(e.target.value)}
-                    />
-                  </div>
+              <button
+                onClick={() => setActiveTab('schedules')}
+                className={`w-full flex items-center justify-center sm:justify-start gap-2 px-3 py-2.5 rounded-xl font-bold transition-all whitespace-nowrap text-left cursor-pointer ${
+                  activeTab === 'schedules'
+                    ? 'bg-[#EAF2ED] text-[#1B4332] border border-[#CBDCCF]'
+                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'
+                }`}
+              >
+                <Calendar className="w-4 h-4" />
+                <span>{lang === 'fi' ? 'Työvuorosuunnittelu' : 'Active Schedules'}</span>
+              </button>
 
-                  <div className="md:col-span-2">
-                    <label className="block text-[#4A4A4A] mb-1.5 uppercase tracking-wider">{lang === 'fi' ? 'Päiväys' : 'Execution Date'}</label>
-                    <input
-                      type="date"
-                      required
-                      className="w-full border border-[#E0E4DC] bg-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-[#1B4332]"
-                      value={newShiftDate}
-                      onChange={(e) => setNewShiftDate(e.target.value)}
-                    />
-                  </div>
+              <button
+                onClick={() => setActiveTab('operations')}
+                className={`w-full flex items-center justify-center sm:justify-start gap-2 px-3 py-2.5 rounded-xl font-bold transition-all whitespace-nowrap text-left cursor-pointer relative ${
+                  activeTab === 'operations'
+                    ? 'bg-[#EAF2ED] text-[#1B4332] border border-[#CBDCCF]'
+                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'
+                }`}
+              >
+                <Briefcase className="w-4 h-4" />
+                <span>{lang === 'fi' ? 'Operatiivinen & Eko' : 'Operations & Inventory'}</span>
+                
+                {bookings.filter(b => b.status === 'Received').length > 0 && (
+                  <span className="absolute right-2 top-2.5 bg-emerald-600 text-white text-[9px] font-mono px-1.5 py-0.5 rounded-full">
+                    {bookings.filter(b => b.status === 'Received').length}
+                  </span>
+                )}
+              </button>
 
-                  <div className="md:col-span-2">
-                    <label className="block text-[#4A4A4A] mb-1.5 uppercase tracking-wider">{lang === 'fi' ? 'Aikaväli' : 'Shift Time'}</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. 06:00 - 10:00"
-                      className="w-full border border-[#E0E4DC] bg-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1B4332] font-mono"
-                      value={newShiftTime}
-                      onChange={(e) => setNewShiftTime(e.target.value)}
-                    />
-                  </div>
+              <button
+                onClick={() => setActiveTab('profile')}
+                className={`w-full flex items-center justify-center sm:justify-start gap-2 px-3 py-2.5 rounded-xl font-bold transition-all whitespace-nowrap text-left cursor-pointer ${
+                  activeTab === 'profile'
+                    ? 'bg-[#EAF2ED] text-[#1B4332] border border-[#CBDCCF]'
+                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'
+                }`}
+              >
+                <Settings className="w-4 h-4" />
+                <span>{lang === 'fi' ? 'Ylläpitäjän Profiili' : 'System Settings'}</span>
+              </button>
 
-                  <div className="md:col-span-2">
-                    <label className="block text-[#4A4A4A] mb-1.5 uppercase tracking-wider">{lang === 'fi' ? 'Tila' : 'Status'}</label>
-                    <select
-                      className="w-full border border-[#E0E4DC] bg-white rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:border-[#1B4332]"
-                      value={newShiftStatus}
-                      onChange={(e: any) => setNewShiftStatus(e.target.value)}
-                    >
-                      <option value="Planned">{lang === 'fi' ? 'Suunniteltu' : 'Scheduled'}</option>
-                      <option value="Active">{lang === 'fi' ? 'Käynnissä' : 'Active'}</option>
-                      <option value="Completed">{lang === 'fi' ? 'Suoritettu' : 'Completed'}</option>
-                    </select>
-                  </div>
+            </aside>
 
-                  <div className="md:col-span-10">
-                    <label className="block text-[#4A4A4A] mb-1.5 uppercase tracking-wider">{lang === 'fi' ? 'Työvuoron painopisteet ja ohjekirjat' : 'Specific Instructions & Task list'}</label>
-                    <input
-                      type="text"
-                      placeholder={lang === 'fi' ? 'Esim. Pyyhi erikoislasiovet, käytä ekologista raikastajaa, tyhjennä bio-astia...' : 'Deep desk clean, microdust monitors focus...'}
-                      className="w-full border border-[#E0E4DC] bg-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1B4332]"
-                      value={newShiftInstructions}
-                      onChange={(e) => setNewShiftInstructions(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <button
-                      type="submit"
-                      className="w-full bg-[#1B4332] text-white hover:bg-[#20513d] py-2 rounded-lg font-bold h-[38px] flex items-center justify-center gap-1 cursor-pointer text-sm"
-                    >
-                      <Plus className="w-5 h-5 animate-pulse" />
-                      <span>{lang === 'fi' ? 'Tallenna' : 'Assign'}</span>
-                    </button>
-                  </div>
-                </form>
-
-                {/* Grid listing Planned shifts */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
-                  {shifts.map(shift => (
-                    <div 
-                      key={shift.id} 
-                      className={`bg-white border rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between ${
-                        shift.status === 'Completed' ? 'border-emerald-500/20 bg-emerald-50/10' :
-                        shift.status === 'Active' ? 'border-sky-500/30 ring-1 ring-sky-500/10' : 'border-[#E0E4DC]'
-                      }`}
-                    >
+            {/* Central Work Space Dynamic Frame Container */}
+            <main className="flex-1 p-6 overflow-y-auto bg-white sm:h-full">
+              
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeTab}
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -15 }}
+                  transition={{ duration: 0.25 }}
+                  className="space-y-6"
+                >
+                  
+                  {/* TAB 1: FINANCIALS & GLOBAL METRICS OVERVIEW */}
+                  {activeTab === 'dashboard' && (
+                    <div className="space-y-6 text-left">
+                      
+                      {/* Top Header Section */}
                       <div>
-                        {/* Header details with status badges */}
-                        <div className="flex items-start justify-between gap-2 mb-3">
-                          <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide cursor-pointer ${
-                            shift.status === 'Completed' ? 'bg-emerald-100 text-emerald-800' :
-                            shift.status === 'Active' ? 'bg-sky-100 text-sky-800' : 'bg-[#FAFAF7] text-[#4A4A4A] border border-[#E0E4DC]'
-                          }`}
-                          onClick={() => handleToggleShiftStatus(shift.id)}
-                          title={lang === 'fi' ? 'Vaihda tilaa klikkaamalla' : 'Click to toggle status'}
-                          >
-                            ● {shift.status === 'Completed' ? (lang === 'fi' ? 'Suoritettu' : 'Completed') :
-                               shift.status === 'Active' ? (lang === 'fi' ? 'Käynnissä' : 'Active') : (lang === 'fi' ? 'Suunniteltu' : 'Planned')}
-                          </span>
-                          
-                          <div className="flex gap-1">
-                            <button
-                              onClick={() => handleDeleteShift(shift.id)}
-                              className="text-gray-400 hover:text-red-500 p-1 rounded focus:outline-none cursor-pointer"
-                              title="Delete shift"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                        <h3 className="font-serif text-lg font-bold text-gray-900 border-b border-gray-100 pb-2">
+                          {lang === 'fi' ? 'Toiminnan talous & Yhteenveto' : 'Financial Health & Operational KPI Highlights'}
+                        </h3>
+                        <p className="text-[#5C6F63] text-xs mt-1">
+                          {lang === 'fi' 
+                            ? 'Reaaliaikaiset tunnusluvut, budjetit ja ekologisen säästön mittarit.'
+                            : 'Real-time corporate oversight, ledger statements, and ecological impacts.'
+                          }
+                        </p>
+                      </div>
+
+                      {/* Financial statistics numbers cards row */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        
+                        <div className="bg-[#FAFBF9] border border-[#E0E4DC] p-4 rounded-2xl flex flex-col justify-between shadow-sm">
+                          <span className="text-[#5C6F63] font-bold text-[10px] tracking-wider uppercase">{lang === 'fi' ? 'KUUKAUSILIITTO (ARVIO)' : 'ESTIMATED REV'}</span>
+                          <div className="flex items-baseline gap-1 mt-1">
+                            <span className="font-serif text-lg font-bold text-[#1B4332]">14,500</span>
+                            <span className="text-[10px] text-gray-400">€/kk</span>
+                          </div>
+                          <div className="mt-2 text-[9px] text-[#2D3E32] font-semibold bg-[#FAFAF7] p-1.5 rounded border border-[#E0E4DC] flex items-center justify-between">
+                            <span>{lang === 'fi' ? 'Tavoite:' : 'Goal:'} 20k €</span>
+                            <span className="text-emerald-700">72.5%</span>
                           </div>
                         </div>
 
-                        {/* Title details */}
-                        <h4 className="font-serif text-lg font-bold text-[#1A1A1A]">
-                          {shift.clientName}
-                        </h4>
-
-                        {/* Timing coordinates */}
-                        <div className="space-y-1.5 text-xs text-[#5C6F63] mt-3 font-medium">
-                          <p className="flex items-center gap-1.5 font-semibold text-[#1B4332]">
-                            <Clock className="w-4 h-4 text-[#95C4A1]" />
-                            <span>{shift.timeWindow}</span>
-                          </p>
-                          <p className="flex items-center gap-1.5">
-                            <Calendar className="w-4 h-4 opacity-70" />
-                            <span>{shift.date}</span>
-                          </p>
+                        <div className="bg-[#FAFBF9] border border-[#E0E4DC] p-4 rounded-2xl flex flex-col justify-between shadow-sm">
+                          <span className="text-[#5C6F63] font-bold text-[10px] tracking-wider uppercase">{lang === 'fi' ? 'REKRYTOIDUT TYÖNTEKIJÄT' : 'STAFF COUNT'}</span>
+                          <span className="font-serif text-lg font-bold text-[#1B4332] mt-1">{employees.length} {lang === 'fi' ? 'hlö' : 'staff'}</span>
+                          <div className="mt-2 text-[9px] text-amber-800 font-semibold bg-[#FAFAF7] p-1.5 rounded border border-[#E0E4DC]">
+                            ⚠️ {employees.filter(e => calculateProgress(e) < 100).length} {lang === 'fi' ? 'perehdytyksessä' : 'onboarding'}
+                          </div>
                         </div>
 
-                        {/* Task Instructions quote container */}
-                        <div className="bg-[#FAFBF9] border-l-2 border-[#95C4A1]/60 px-3 py-2.5 rounded-r-lg mt-4 text-[11px] leading-relaxed text-[#4A4A4A] italic">
-                          <span>{shift.instructions || (lang === 'fi' ? 'Ei erityisohjeita asetettu.' : 'Generic maintenance cleaning cycle.')}</span>
+                        <div className="bg-[#FAFBF9] border border-[#E0E4DC] p-4 rounded-2xl flex flex-col justify-between shadow-sm">
+                          <span className="text-[#5C6F63] font-bold text-[10px] tracking-wider uppercase">{lang === 'fi' ? 'TYÖVUOROT (TÄSSÄ KUUSSA)' : 'COMPLETED JOBS'}</span>
+                          <span className="font-serif text-lg font-bold text-teal-800 mt-1">
+                            {shifts.filter(s => s.status === 'Completed').length} / {shifts.length}
+                          </span>
+                          <div className="mt-2 text-[9px] text-emerald-800 font-semibold bg-[#FAFAF7] p-1.5 rounded border border-[#E0E4DC]">
+                            ✓ {shifts.filter(s => s.status === 'Planned').length} {lang === 'fi' ? 'suunniteltu' : 'planned'}
+                          </div>
                         </div>
 
-                        {/* Employee Performance Log Section */}
-                        <div className="mt-4 pt-3 border-t border-dashed border-[#E0E4DC]">
-                          {editingPerformanceShiftId === shift.id ? (
-                            <div className="bg-[#FAFAF7] p-3 rounded-lg border border-[#D5E4DB] space-y-3 text-xs">
-                              <h5 className="font-bold text-[#1B4332] flex items-center gap-1">
-                                📝 {lang === 'fi' ? 'Suoritusraportti' : 'Performance Log'}
-                              </h5>
-                              
+                        <div className="bg-[#FAFBF9] border border-[#E0E4DC] p-4 rounded-2xl flex flex-col justify-between shadow-sm">
+                          <span className="text-[#5C6F63] font-bold text-[10px] tracking-wider uppercase"> {lang === 'fi' ? 'VIHREÄ EKO-SÄÄSTÖ' : 'ECO SAVINGS RATE'}</span>
+                          <span className="font-serif text-lg font-bold text-emerald-800 mt-1">98.5%</span>
+                          <div className="mt-2 text-[9px] text-emerald-700 font-bold bg-[#FAFBF9] p-1.5 rounded border border-[#D5E4DB]">
+                            🌿 {lang === 'fi' ? 'Ei haitallisia kemikaaleja' : 'No harsh chemicals used'}
+                          </div>
+                        </div>
+
+                      </div>
+
+                      {/* Eco Operations Highlights Row */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        
+                        {/* Company SOP clean list */}
+                        <div className="bg-[#FAFBF9] border border-[#E0E4DC] rounded-2xl p-5 space-y-3 shadow-sm">
+                          <div className="flex items-center justify-between">
+                            <span className="font-serif text-sm font-bold text-gray-900">{lang === 'fi' ? 'Yleiset yritystiedot ja tunnusluvut' : 'General operational status'}</span>
+                            <Briefcase className="w-4 h-4 text-[#1B4332]" />
+                          </div>
+                          
+                          <div className="space-y-2 text-xs font-semibold">
+                            <div className="flex justify-between border-b border-gray-150 py-1 text-gray-700">
+                              <span>{lang === 'fi' ? 'Yritys' : 'Organization'}</span>
+                              <span className="text-gray-800">Puhdas Tila Oy</span>
+                            </div>
+                            <div className="flex justify-between border-b border-gray-150 py-1 text-gray-700">
+                              <span>{lang === 'fi' ? 'Toimialue' : 'Territory'}</span>
+                              <span className="text-gray-800">Pääkaupunkiseutu (Espoo, Helsinki)</span>
+                            </div>
+                            <div className="flex justify-between border-b border-gray-150 py-1 text-gray-700">
+                              <span>{lang === 'fi' ? 'Ekologisuusaste' : 'Sustainability metric'}</span>
+                              <span className="text-emerald-700 font-bold">A++ (Ympäristöluokitus)</span>
+                            </div>
+                            <div className="flex justify-between border-b border-gray-150 py-1 text-gray-700">
+                              <span>{lang === 'fi' ? 'Asiakastyytyväisyys' : 'Client satisfaction rate'}</span>
+                              <span className="text-[#1B4332] font-bold">4.9 / 5.0</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Eco impact statistics */}
+                        <div className="bg-gradient-to-br from-[#1B4332] to-[#2D5A47] text-white rounded-2xl p-5 space-y-3 shadow-sm flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-center gap-1.5 text-[#95C4A1]">
+                              <Sparkles className="w-4 h-4" />
+                              <span className="text-[10px] font-bold uppercase tracking-wider">{lang === 'fi' ? 'Ekologisen jalanjäljen säästömittari' : 'Eco impact calculator'}</span>
+                            </div>
+                            <h4 className="font-serif text-base font-bold text-white mt-1">
+                              {lang === 'fi' ? 'Kemikaalirasituksen väheneminen' : 'Chemical reduction tracking'}
+                            </h4>
+                            <p className="text-white/70 text-[11px] leading-relaxed mt-2">
+                              {lang === 'fi'
+                                ? 'Puhdas Tila käyttää yksinomaan pro-ympäristösertifioituja sitruunahappo-, etikka- ja soodapohjaisia pesuaineita. Vähennämme merkittävästi valkaisuaineiden ja mikromuovien joutumista vesistöihin.'
+                                : 'Our certified green solutions clean workplaces without harmful volatile compounds. Ensuring zero toxic chemical footprints inside customer buildings.'
+                              }
+                            </p>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-3 text-center border-t border-white/10 pt-3">
+                            <div className="bg-white/5 py-2 px-1 rounded-xl">
+                              <span className="text-[10px] text-emerald-300 block font-bold">120 kg</span>
+                              <span className="text-[9px] text-white/60">{lang === 'fi' ? 'Säästettyä klooria' : 'Chlorine saved'}</span>
+                            </div>
+                            <div className="bg-white/5 py-2 px-1 rounded-xl">
+                              <span className="text-[10px] text-emerald-300 block font-bold">380 pulloa</span>
+                              <span className="text-[9px] text-white/60">{lang === 'fi' ? 'Vähemmän muovijätettä' : 'Less plastic waste'}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                      </div>
+
+                    </div>
+                  )}
+
+                  {/* TAB 2: STAFF & ONBOARDING ROSTER */}
+                  {activeTab === 'employees' && (
+                    <div className="space-y-6 text-left">
+                      
+                      {/* Section Title */}
+                      <div>
+                        <h3 className="font-serif text-lg font-bold text-gray-900 border-b border-gray-100 pb-2">
+                          {lang === 'fi' ? 'Rekrytointi & Henkilöstön perehdytys' : 'Recruiting & Employee Onboarding Portal'}
+                        </h3>
+                        <p className="text-[#5C6F63] text-xs mt-1">
+                          {lang === 'fi' 
+                            ? 'Lisää uusia tiimiläisiä ja seuraa heidän viisivaiheista perehdytysprosessiaan reaaliajassa.'
+                            : 'Monitor your staffing pipelines, customize hourly pay, and ensure 100% compliance via checklists.'
+                          }
+                        </p>
+                      </div>
+
+                      {/* Grid containing ADD EMPLOYEE FORM and STAFF ROSTER */}
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        
+                        {/* 1. Add Employee Form Panel */}
+                        <div className="bg-[#FAFBF9] border border-[#E0E4DC] rounded-2xl p-5 shadow-sm space-y-4 h-fit">
+                          <div className="flex items-center gap-2">
+                            <Plus className="w-5 h-5 text-[#1B4332]" />
+                            <h4 className="font-serif text-sm font-bold text-gray-900">
+                              {lang === 'fi' ? 'Lisää uusi työntekijä' : 'Add new employee'}
+                            </h4>
+                          </div>
+
+                          <form onSubmit={handleAddEmployee} className="space-y-3.5 text-xs">
+                            <div className="space-y-1">
+                              <label className="text-gray-500 font-bold uppercase tracking-wider block text-[10px]">{lang === 'fi' ? 'Koko nimi' : 'Full Name'}</label>
+                              <input
+                                type="text"
+                                required
+                                className="w-full border border-[#E0E4DC] rounded-xl px-3 py-2 bg-white focus:outline-[#1B4332]"
+                                placeholder="E.g. Taru Salonaho"
+                                value={newEmpName}
+                                onChange={(e) => setNewEmpName(e.target.value)}
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                               <div className="space-y-1">
-                                <label className="block text-[10px] uppercase font-bold text-gray-500">
-                                  {lang === 'fi' ? 'Toteutunut aika (tunnit) *' : 'Time Tracked (hours) *'}
-                                </label>
+                                <label className="text-gray-500 font-bold uppercase tracking-wider block text-[10px]">{lang === 'fi' ? 'Puhelin' : 'Phone'}</label>
                                 <input
                                   type="text"
-                                  className="w-full border border-gray-300 bg-white rounded px-2 py-1 text-xs font-semibold focus:outline-none focus:border-[#1B4332]"
-                                  placeholder="e.g. 4.0 or 3.5"
-                                  value={perfTimeTracked}
-                                  onChange={(e) => setPerfTimeTracked(e.target.value)}
+                                  className="w-full border border-[#E0E4DC] rounded-xl px-3 py-2 bg-white focus:outline-[#1B4332]"
+                                  placeholder="+358..."
+                                  value={newEmpPhone}
+                                  onChange={(e) => setNewEmpPhone(e.target.value)}
                                 />
                               </div>
-
                               <div className="space-y-1">
-                                <label className="block text-[10px] uppercase font-bold text-gray-500">
-                                  {lang === 'fi' ? 'Työvuoron laatu- / tapahtumahuomiot' : 'Shift Notes / Incidents'}
-                                </label>
-                                <textarea
-                                  className="w-full border border-gray-300 bg-white rounded px-2 py-1 text-xs focus:outline-none focus:border-[#1B4332] h-12 resize-none font-medium text-gray-700"
-                                  placeholder={lang === 'fi' ? 'Esim. Kaikki tehtävät tehty, ei huomautettavaa...' : 'e.g. Cleared checklists, no incidents...'}
-                                  value={perfShiftNotes}
-                                  onChange={(e) => setPerfShiftNotes(e.target.value)}
+                                <label className="text-gray-500 font-bold uppercase tracking-wider block text-[10px]">{lang === 'fi' ? 'Sähköposti' : 'Email'}</label>
+                                <input
+                                  type="email"
+                                  className="w-full border border-[#E0E4DC] rounded-xl px-3 py-2 bg-white focus:outline-[#1B4332]"
+                                  placeholder="aino@example.com"
+                                  value={newEmpEmail}
+                                  onChange={(e) => setNewEmpEmail(e.target.value)}
                                 />
-                              </div>
-
-                              <div className="space-y-1">
-                                <label className="block text-[10px] uppercase font-bold text-gray-500">
-                                  {lang === 'fi' ? 'Työntekijäkohtainen palaute' : 'Employee Feedback'}
-                                </label>
-                                <textarea
-                                  className="w-full border border-gray-300 bg-white rounded px-2 py-1 text-xs focus:outline-none focus:border-[#1B4332] h-12 resize-none font-medium text-gray-700"
-                                  placeholder={lang === 'fi' ? 'Palautetta työntekijän suorituksesta...' : 'Feedback on professional precision...'}
-                                  value={perfFeedback}
-                                  onChange={(e) => setPerfFeedback(e.target.value)}
-                                />
-                              </div>
-
-                              <div className="flex justify-end gap-1.5 pt-1">
-                                <button
-                                  type="button"
-                                  onClick={() => setEditingPerformanceShiftId(null)}
-                                  className="px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded text-[10px] font-bold text-gray-700 transition-colors"
-                                >
-                                  {lang === 'fi' ? 'Peruuta' : 'Cancel'}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    handleUpdateShiftPerformance(shift.id, perfTimeTracked, perfFeedback, perfShiftNotes);
-                                    setEditingPerformanceShiftId(null);
-                                  }}
-                                  className="px-2.5 py-1 bg-[#1B4332] hover:bg-[#20513d] text-white rounded text-[10px] font-bold transition-colors"
-                                >
-                                  {lang === 'fi' ? 'Tallenna' : 'Save'}
-                                </button>
                               </div>
                             </div>
-                          ) : (
-                            <div className="space-y-2">
-                              {/* If performance data has been recorded, show it nicely */}
-                              {(shift.timeTracked || shift.feedback || shift.shiftNotes) ? (
-                                <div className="bg-[#F0F5F1] p-3 rounded-lg border border-[#D5E4DB]/60 space-y-1.5 text-[11px] text-[#2D3E32]">
-                                  <div className="flex justify-between items-center text-[10px] uppercase font-bold text-[#1B4332]">
-                                    <span>📝 {lang === 'fi' ? 'Suoritusraportti' : 'Performance Log'}</span>
-                                    <span className="font-mono bg-[#95C4A1]/20 px-1.5 py-0.5 rounded text-[9px]">
-                                      ⏱️ {shift.timeTracked ? `${shift.timeTracked} h` : '-- h'}
+
+                            <div className="space-y-1">
+                              <label className="text-gray-500 font-bold uppercase tracking-wider block text-[10px]">{lang === 'fi' ? 'Tehtävänimike' : 'Company Role'}</label>
+                              <select
+                                className="w-full border border-[#E0E4DC] rounded-xl px-3 py-2 bg-white focus:outline-[#1B4332]"
+                                value={newEmpRole}
+                                onChange={(e) => setNewEmpRole(e.target.value)}
+                              >
+                                <option value="Siivooja (Cleaner)">{lang === 'fi' ? 'Toimistosiivooja (Office cleaner)' : 'Office cleaner'}</option>
+                                <option value="Palveluohjaaja (Supervisor)">{lang === 'fi' ? 'Palveluohjaaja (Supervisor)' : 'Services Supervisor'}</option>
+                                <option value="Eko-Asiantuntija (Eco hygiene)">{lang === 'fi' ? 'Eko-Spesialisti (Eco hygiene)' : 'Eco Sanitation specialist'}</option>
+                              </select>
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-gray-500 font-bold uppercase tracking-wider block text-[10px]">{lang === 'fi' ? 'Sopimustyyppi' : 'Contract Arrangement'}</label>
+                              <select
+                                className="w-full border border-[#E0E4DC] rounded-xl px-3 py-2 bg-white focus:outline-[#1B4332]"
+                                value={newEmpContract}
+                                onChange={(e) => setNewEmpContract(e.target.value)}
+                              >
+                                <option value="Osa-aikainen (Part-time)">{lang === 'fi' ? 'Osa-aikainen (Part-time)' : 'Part-time'}</option>
+                                <option value="Kokoaikainen (Full-time)">{lang === 'fi' ? 'Kokoaikainen (Full-time)' : 'Full-time'}</option>
+                                <option value="Tarvittaessa kutsuttava (On-call)">{lang === 'fi' ? 'Tarvittaessa kutsuttava (On-call)' : 'On-call basis'}</option>
+                              </select>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1">
+                                <label className="text-gray-500 font-bold uppercase tracking-wider block text-[10px]">{lang === 'fi' ? 'Aloituspäivä' : 'Start Date'}</label>
+                                <input
+                                  type="date"
+                                  className="w-full border border-[#E0E4DC] rounded-xl px-3 py-2 bg-white focus:outline-[#1B4332]"
+                                  value={newEmpJoining}
+                                  onChange={(e) => setNewEmpJoining(e.target.value)}
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-gray-500 font-bold uppercase tracking-wider block text-[10px]">{lang === 'fi' ? 'Tuntipalkka (€)' : 'Hourly rate (€)'}</label>
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  className="w-full border border-[#E0E4DC] rounded-xl px-3 py-2 bg-white focus:outline-[#1B4332]"
+                                  value={newEmpHourlyRate}
+                                  onChange={(e) => setNewEmpHourlyRate(Number(e.target.value))}
+                                />
+                              </div>
+                            </div>
+
+                            <button
+                              type="submit"
+                              className="w-full bg-[#1B4332] hover:bg-[#20513d] text-white py-2 rounded-xl font-bold transition-all mt-2 cursor-pointer text-center"
+                            >
+                              {lang === 'fi' ? 'Tallenna työntekijä rosteriin' : 'Save Employee to Roster'}
+                            </button>
+                          </form>
+                        </div>
+
+                        {/* 2. Roster List & Onboarding Checker */}
+                        <div className="lg:col-span-2 space-y-4">
+                          
+                          {/* Search bar helper */}
+                          <div className="bg-[#FAFBF9] border border-[#E0E4DC] rounded-xl px-4 py-2 flex items-center gap-2">
+                            <Search className="w-4 h-4 text-gray-400 shrink-0" />
+                            <input
+                              type="text"
+                              className="w-full bg-transparent focus:outline-none placeholder-gray-400 text-xs text-gray-800"
+                              placeholder={lang === 'fi' ? 'Hae työntekijöitä nimellä tai tehtävällä...' : 'Search staffing database by name, position...'}
+                              value={empSearch}
+                              onChange={(e) => setEmpSearch(e.target.value)}
+                            />
+                          </div>
+
+                          {/* List of employees */}
+                          <div className="space-y-4">
+                            {filteredEmployees.map((emp) => {
+                              const prog = calculateProgress(emp);
+                              return (
+                                <div key={emp.id} className="bg-white border border-[#E0E4DC] rounded-2xl p-5 shadow-sm space-y-4 hover:border-[#CBDCCF] transition-all relative">
+                                  
+                                  {/* Top header row */}
+                                  <div className="flex justify-between items-start flex-wrap gap-4">
+                                    <div className="flex items-start gap-3">
+                                      {/* Avatar profile picture section */}
+                                      <div className="relative shrink-0">
+                                        {emp.avatarUrl ? (
+                                          <img 
+                                            src={emp.avatarUrl} 
+                                            alt={emp.name} 
+                                            className="w-12 h-12 rounded-full object-cover border-2 border-emerald-600/30 shadow-sm"
+                                            referrerPolicy="no-referrer"
+                                          />
+                                        ) : (
+                                          <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-800 flex items-center justify-center font-bold font-serif text-sm border border-emerald-100">
+                                            {emp.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      <div>
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <h4 className="font-serif text-sm font-bold text-gray-900">{emp.name}</h4>
+                                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${prog === 100 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                                            {prog === 100 ? (lang === 'fi' ? 'Perehdytetty' : 'Onboarded') : `${prog}% ${lang === 'fi' ? 'Suoritettu' : 'Complete'}`}
+                                          </span>
+                                        </div>
+                                        <p className="text-[#5C6F63] text-xs font-semibold mt-1">
+                                          {emp.role} • <span className="font-mono">{emp.hourlyRate.toFixed(2)}€/h</span>
+                                        </p>
+                                        <div className="flex gap-4 mt-1 text-[10px] text-gray-400">
+                                          <span>📞 {emp.phone || 'N/A'}</span>
+                                          <span>✉️ {emp.email || 'N/A'}</span>
+                                          <span>📅 {lang === 'fi' ? 'Aloitus:' : 'Starts:'} {emp.joiningDate}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Action items */}
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        onClick={() => setExpandedEmployeeId(expandedEmployeeId === emp.id ? null : emp.id)}
+                                        className={`px-3 py-1.5 rounded-xl border font-bold text-[10px] flex items-center gap-1.5 transition-all select-none cursor-pointer ${
+                                          expandedEmployeeId === emp.id
+                                            ? 'bg-emerald-850 border-emerald-850 text-white shadow-sm'
+                                            : 'bg-white border-[#E0E4DC] text-[#1B4332] hover:bg-gray-50'
+                                        }`}
+                                      >
+                                        <Paperclip className="w-3.5 h-3.5" />
+                                        <span>
+                                          {lang === 'fi' ? 'Asiakirjat' : 'Files'} ({emp.contracts?.length || 0})
+                                        </span>
+                                      </button>
+
+                                      <button
+                                        onClick={() => handleDeleteEmployee(emp.id)}
+                                        className="text-red-400 hover:text-red-600 p-1.5 hover:bg-red-50 rounded-lg transition-all cursor-pointer"
+                                        title="Delete employee"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Progress Bar visual indicator */}
+                                  <div className="space-y-1">
+                                    <div className="w-full bg-gray-150 h-2 rounded-full overflow-hidden flex">
+                                      <div 
+                                        className={`h-full transition-all duration-300 ${prog === 100 ? 'bg-emerald-600' : 'bg-amber-500'}`}
+                                        style={{ width: `${prog}%` }}
+                                      />
+                                    </div>
+                                    <span className="text-[10px] font-bold text-gray-400 block tracking-widest uppercase">
+                                      {lang === 'fi' ? 'Yleinen perehdytyksen tila (Checklist Progress)' : 'Verification Compliance progress'}
                                     </span>
                                   </div>
-                                  
-                                  {shift.shiftNotes && (
-                                    <p className="line-clamp-2">
-                                      <strong className="text-gray-500">{lang === 'fi' ? 'Merkinnät:' : 'Notes:'}</strong>{' '}
-                                      <span className="italic font-medium text-gray-700">{shift.shiftNotes}</span>
-                                    </p>
-                                  )}
-                                  
-                                  {shift.feedback && (
-                                    <p className="line-clamp-2">
-                                      <strong className="text-gray-500">{lang === 'fi' ? 'Palaute:' : 'Feedback:'}</strong>{' '}
-                                      <span className="italic font-medium text-gray-700">{shift.feedback}</span>
-                                    </p>
+
+                                  {/* Interactive Checklist checkboxes segment */}
+                                  <div className="bg-[#FAFBF9] border border-[#E0E4DC] rounded-xl p-3 grid grid-cols-1 md:grid-cols-5 gap-2 text-[10px] font-bold font-sans">
+                                    
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleOnboardingTask(emp.id, 'taxCardSubmitted')}
+                                      className={`flex items-center gap-1.5 p-1.5 rounded-lg border transition-all justify-center cursor-pointer ${
+                                        emp.taxCardSubmitted 
+                                          ? 'bg-emerald-50 border-[#CBDCCF] text-emerald-800' 
+                                          : 'bg-white border-[#E0E4DC] text-gray-400 hover:bg-gray-50'
+                                      }`}
+                                    >
+                                      <Check className={`w-3.5 h-3.5 ${emp.taxCardSubmitted ? 'opacity-100' : 'opacity-20'}`} />
+                                      <span className="text-center">{lang === 'fi' ? 'Verokortti ✓' : 'Tax Card ✓'}</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleOnboardingTask(emp.id, 'contractSigned')}
+                                      className={`flex items-center gap-1.5 p-1.5 rounded-lg border transition-all justify-center cursor-pointer ${
+                                        emp.contractSigned 
+                                          ? 'bg-emerald-50 border-[#CBDCCF] text-emerald-800' 
+                                          : 'bg-white border-[#E0E4DC] text-gray-400 hover:bg-gray-50'
+                                      }`}
+                                    >
+                                      <Check className={`w-3.5 h-3.5 ${emp.contractSigned ? 'opacity-100' : 'opacity-20'}`} />
+                                      <span className="text-center">{lang === 'fi' ? 'Sopimus ✓' : 'Contract ✓'}</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleOnboardingTask(emp.id, 'ecoChemicalTraining')}
+                                      className={`flex items-center gap-1.5 p-1.5 rounded-lg border transition-all justify-center cursor-pointer ${
+                                        emp.ecoChemicalTraining 
+                                          ? 'bg-emerald-50 border-[#CBDCCF] text-emerald-800' 
+                                          : 'bg-white border-[#E0E4DC] text-gray-400 hover:bg-gray-50'
+                                      }`}
+                                    >
+                                      <Check className={`w-3.5 h-3.5 ${emp.ecoChemicalTraining ? 'opacity-100' : 'opacity-20'}`} />
+                                      <span className="text-center">{lang === 'fi' ? 'Ekopesukoulutus ✓' : 'Eco-Chemical ✓'}</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleOnboardingTask(emp.id, 'safetyEquipmentIssued')}
+                                      className={`flex items-center gap-1.5 p-1.5 rounded-lg border transition-all justify-center cursor-pointer ${
+                                        emp.safetyEquipmentIssued 
+                                          ? 'bg-emerald-50 border-[#CBDCCF] text-emerald-800' 
+                                          : 'bg-white border-[#E0E4DC] text-gray-400 hover:bg-gray-50'
+                                      }`}
+                                    >
+                                      <Check className={`w-3.5 h-3.5 ${emp.safetyEquipmentIssued ? 'opacity-100' : 'opacity-20'}`} />
+                                      <span className="text-center">{lang === 'fi' ? 'Varusteet jaettu ✓' : 'Gear Issued ✓'}</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleOnboardingTask(emp.id, 'firstShiftCompleted')}
+                                      className={`flex items-center gap-1.5 p-1.5 rounded-lg border transition-all justify-center cursor-pointer ${
+                                        emp.firstShiftCompleted 
+                                          ? 'bg-emerald-50 border-[#CBDCCF] text-emerald-800' 
+                                          : 'bg-white border-[#E0E4DC] text-gray-400 hover:bg-gray-50'
+                                      }`}
+                                    >
+                                      <Check className={`w-3.5 h-3.5 ${emp.firstShiftCompleted ? 'opacity-100' : 'opacity-20'}`} />
+                                      <span className="text-center">{lang === 'fi' ? 'Ekavuoro tehty ✓' : '1st Shift Done ✓'}</span>
+                                    </button>
+
+                                  </div>
+
+                                  {/* EXPANDABLE DOCUMENTS & PHOTO MANAGER PANEL */}
+                                  {expandedEmployeeId === emp.id && (
+                                    <div className="mt-4 pt-4 border-t border-gray-100 flex flex-col gap-5 text-xs text-gray-800">
+                                      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                                        
+                                        {/* Row 1: Profile picture update widget */}
+                                        <div className="bg-[#FAFBF9] border border-[#E0E4DC] p-3.5 rounded-xl space-y-3">
+                                          <span className="text-[10px] uppercase tracking-wider text-gray-400 font-bold block">
+                                            {lang === 'fi' ? '1. Profiilikuva' : '1. Profile Picture'}
+                                          </span>
+                                          
+                                          <div className="flex flex-col items-center justify-center py-2 gap-3">
+                                            <div className="relative">
+                                              {emp.avatarUrl ? (
+                                                <img 
+                                                  src={emp.avatarUrl} 
+                                                  alt={emp.name} 
+                                                  className="w-16 h-16 rounded-full object-cover border-2 border-[#1B4332]"
+                                                  referrerPolicy="no-referrer"
+                                                />
+                                              ) : (
+                                                <div className="w-16 h-16 rounded-full bg-emerald-50 text-emerald-800 flex items-center justify-center font-bold font-serif text-lg border border-emerald-100">
+                                                  {emp.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                                                </div>
+                                              )}
+                                            </div>
+
+                                            <label 
+                                              htmlFor={`file-avatar-${emp.id}`} 
+                                              className="bg-[#1B4332] hover:bg-[#20513d] text-white px-3 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer flex items-center gap-1 transition-all inline-block text-center"
+                                            >
+                                              <Upload className="w-3 h-3 inline" /> {lang === 'fi' ? 'Muuta kuva' : 'Change Image'}
+                                            </label>
+                                            <input 
+                                              id={`file-avatar-${emp.id}`}
+                                              type="file"
+                                              accept="image/*"
+                                              className="hidden"
+                                              onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) handleEmployeeAvatarChange(emp.id, file);
+                                              }}
+                                            />
+                                          </div>
+                                        </div>
+
+                                        {/* Row 2: Document folder list and upload */}
+                                        <div className="bg-[#FAFBF9] border border-[#E0E4DC] p-3.5 rounded-xl space-y-3 md:col-span-2">
+                                          <div className="flex justify-between items-center">
+                                            <span className="text-[10px] uppercase tracking-wider text-gray-400 font-bold block">
+                                              {lang === 'fi' ? '2. Allekirjoitetut sopimukset & verokortit' : '2. Signed Contracts & Tax files'}
+                                            </span>
+                                            
+                                            <label 
+                                              htmlFor={`file-contract-${emp.id}`}
+                                              className="text-emerald-800 hover:text-emerald-950 text-[10px] font-bold cursor-pointer inline-flex items-center gap-1"
+                                            >
+                                              <Upload className="w-3 h-3" />
+                                              {lang === 'fi' ? 'Lisää asiakirja' : 'Add Document'}
+                                            </label>
+                                            <input 
+                                              id={`file-contract-${emp.id}`}
+                                              type="file"
+                                              accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.txt"
+                                              className="hidden"
+                                              onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) handleEmployeeContractUpload(emp.id, file);
+                                              }}
+                                            />
+                                          </div>
+
+                                          <div className="space-y-2 max-h-[140px] overflow-y-auto pr-1 text-left">
+                                            {emp.contracts && emp.contracts.length > 0 ? (
+                                              emp.contracts.map((cont, index) => (
+                                                <div key={index} className="bg-white border border-[#E0E4DC] rounded-lg px-3 py-2 flex items-center justify-between gap-2 shadow-xs">
+                                                  <div className="flex items-center gap-2 min-w-0">
+                                                    <File className="w-4 h-4 text-emerald-700 shrink-0" />
+                                                    <div className="min-w-0 text-left">
+                                                      <h5 className="font-bold text-gray-900 text-[11px] truncate">{cont.name}</h5>
+                                                      <p className="text-[9px] text-[#5C6F63] font-semibold">{cont.date} • {cont.size}</p>
+                                                    </div>
+                                                  </div>
+                                                  
+                                                  <div className="flex items-center gap-1.5 shrink-0">
+                                                    <a 
+                                                      href={cont.content} 
+                                                      download={cont.name}
+                                                      className="p-1 text-emerald-800 hover:bg-emerald-50 rounded transition-all inline-block"
+                                                      title={lang === 'fi' ? 'Lataa asiakirja' : 'Download file'}
+                                                    >
+                                                      <Download className="w-3.5 h-3.5" />
+                                                    </a>
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => handleDeleteEmployeeContract(emp.id, index)}
+                                                      className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-all cursor-pointer"
+                                                      title={lang === 'fi' ? 'Poista asiakirja' : 'Delete file'}
+                                                    >
+                                                      <Trash2 className="w-3.5 h-3.5" />
+                                                    </button>
+                                                  </div>
+                                                </div>
+                                              ))
+                                            ) : (
+                                              <div className="border border-dashed border-gray-150 rounded-lg p-5 text-center text-gray-400">
+                                                <p className="text-[10px] md:text-[11px] font-semibold">{lang === 'fi' ? 'Ei ladattuja asiakirjoja vielä.' : 'No uploads found. Upload pre-signed employment agreements.'}</p>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+
+                                      </div>
+
+                                      {/* Row 3: Admin detailed Notes */}
+                                      <div className="bg-[#FAFBF9] border border-[#E0E4DC] p-3.5 rounded-xl space-y-2 text-left">
+                                        <div className="flex justify-between items-center">
+                                          <span className="text-[10px] uppercase tracking-wider text-gray-400 font-bold block">
+                                            {lang === 'fi' ? '3. Perehdytyksen lisätiedot & operatiiviset muistiinpanot' : '3. Onboarding details & private operator notes'}
+                                          </span>
+                                        </div>
+                                        
+                                        <div className="flex gap-2">
+                                          <textarea 
+                                            rows={2}
+                                            id={`notes-textarea-${emp.id}`}
+                                            defaultValue={emp.notes || ''}
+                                            placeholder={lang === 'fi' ? 'Kirjaa tähän huomioita perehdytyksestä, kielitaidosta, lisävarusteista tai peruutuskäytännöistä...' : 'Add information about specialized certifications, language proficiencies, emergency contact info...'}
+                                            className="w-full bg-white border border-[#E0E4DC] rounded-xl px-3 py-2 text-xs focus:outline-[#1B4332] font-semibold shrink"
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const value = (document.getElementById(`notes-textarea-${emp.id}`) as HTMLTextAreaElement)?.value || '';
+                                              handleEmployeeNotesSave(emp.id, value);
+                                              alert(lang === 'fi' ? 'Muistiinpanot tallennettu!' : 'Notes saved successfully!');
+                                            }}
+                                            className="bg-[#1B4332] hover:bg-[#20513d] text-white px-3 font-bold rounded-xl flex items-center justify-center transition-all cursor-pointer whitespace-nowrap text-xs shrink-0"
+                                          >
+                                            {lang === 'fi' ? 'Tallenna' : 'Save'}
+                                          </button>
+                                        </div>
+                                      </div>
+
+                                    </div>
                                   )}
 
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setEditingPerformanceShiftId(shift.id);
-                                      setPerfTimeTracked(shift.timeTracked || '');
-                                      setPerfFeedback(shift.feedback || '');
-                                      setPerfShiftNotes(shift.shiftNotes || '');
-                                    }}
-                                    className="text-[10px] text-[#1B4332] hover:text-[#2D6A4F] font-bold underline transition-colors cursor-pointer pt-0.5 block text-left"
-                                  >
-                                    {lang === 'fi' ? 'Muokkaa raporttia' : 'Edit Performance Log'}
-                                  </button>
                                 </div>
-                              ) : (
+                              );
+                            })}
+
+                            {filteredEmployees.length === 0 && (
+                              <div className="bg-orange-50 border border-orange-100 p-8 rounded-2xl text-center text-[#A6623E]">
+                                <p className="font-serif text-sm font-bold">{lang === 'fi' ? 'Ei työntekijöitä hakusanalla' : 'No staff matched your query.'}</p>
+                              </div>
+                            )}
+                          </div>
+
+                        </div>
+
+                      </div>
+
+                    </div>
+                  )}
+
+                  {/* TAB 3: SCHEDULING JOB ASSIGNMENTS */}
+                  {activeTab === 'schedules' && (
+                    <div className="space-y-6 text-left">
+                      
+                      {/* Section Title */}
+                      <div>
+                        <h3 className="font-serif text-lg font-bold text-gray-900 border-b border-gray-100 pb-2">
+                          {lang === 'fi' ? 'Työvuorosuunnittelu (Schedules)' : 'Job Scheduling & Sanitation Dispatch'}
+                        </h3>
+                        <p className="text-[#5C6F63] text-xs mt-1">
+                          {lang === 'fi' 
+                            ? 'Luo, muokkaa ja kohdista vuoroja. Liitä mukaan tiukat biologisen siivouksen SOP-ohjeet.'
+                            : 'Deploy cleaners to office hubs, schedule ecological chemical cleaning, and review checklists.'
+                          }
+                        </p>
+                      </div>
+
+                      {/* Scheduling master framework */}
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        
+                        {/* 1. Add Shift form panel */}
+                        <div className="bg-[#FAFBF9] border border-[#E0E4DC] rounded-2xl p-5 shadow-sm space-y-4 h-fit">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-5 h-5 text-[#1B4332]" />
+                            <h4 className="font-serif text-sm font-bold text-gray-900">
+                              {lang === 'fi' ? 'Luo uusi työvuoro' : 'Schedule new shift'}
+                            </h4>
+                          </div>
+
+                          <form onSubmit={handleAddShift} className="space-y-3.5 text-xs">
+                            
+                            <div className="space-y-1">
+                              <label className="text-gray-500 font-bold uppercase tracking-wider block text-[10px]">{lang === 'fi' ? 'Valitse Työntekijä' : 'Assign Employee'}</label>
+                              <select
+                                required
+                                className="w-full border border-[#E0E4DC] rounded-xl px-3 py-2 bg-white focus:outline-[#1B4332]"
+                                value={newShiftEmployee}
+                                onChange={(e) => setNewShiftEmployee(e.target.value)}
+                              >
+                                <option value="">-- {lang === 'fi' ? 'Valitse työntekijä rosterista' : 'Select active staff'} --</option>
+                                {employees.map(emp => (
+                                  <option key={emp.id} value={emp.name}>{emp.name} ({emp.role})</option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-gray-500 font-bold uppercase tracking-wider block text-[10px]"> {lang === 'fi' ? 'Asiakkaan Kohde / Yrityksen nimi' : 'Client clean site'}</label>
+                              <input
+                                type="text"
+                                required
+                                className="w-full border border-[#E0E4DC] rounded-xl px-3 py-2 bg-white focus:outline-[#1B4332]"
+                                placeholder="E.g. Tapiola Dental Clinic"
+                                value={newShiftClient}
+                                onChange={(e) => setNewShiftClient(e.target.value)}
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1">
+                                <label className="text-gray-500 font-bold uppercase tracking-wider block text-[10px]">{lang === 'fi' ? 'Päivämäärä' : 'Scheduled Date'}</label>
+                                <input
+                                  type="date"
+                                  className="w-full border border-[#E0E4DC] rounded-xl px-3 py-2 bg-white focus:outline-[#1B4332]"
+                                  value={newShiftDate}
+                                  onChange={(e) => setNewShiftDate(e.target.value)}
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-gray-500 font-bold uppercase tracking-wider block text-[10px]">{lang === 'fi' ? 'Aikaikkuna (e.g. 08-12)' : 'Time Window'}</label>
+                                <input
+                                  type="text"
+                                  className="w-full border border-[#E0E4DC] rounded-xl px-3 py-2 bg-white focus:outline-[#1B4332]"
+                                  placeholder="08:00 - 12:00"
+                                  value={newShiftTime}
+                                  onChange={(e) => setNewShiftTime(e.target.value)}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-gray-500 font-bold uppercase tracking-wider block text-[10px]">{lang === 'fi' ? 'Erityiset SOP- ja siivousohjeet' : 'SOP & Special Site Rules'}</label>
+                              <textarea
+                                rows={4}
+                                className="w-full border border-[#E0E4DC] rounded-xl px-3 py-2 bg-white focus:outline-[#1B4332] font-semibold"
+                                placeholder={lang === 'fi' ? 'Keskity pintojen desinfiointiin ja imurointiin...' : 'Spot clean boardroom glass tables, recycle paper bins...'}
+                                value={newShiftInstructions}
+                                onChange={(e) => setNewShiftInstructions(e.target.value)}
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-gray-500 font-bold uppercase tracking-wider block text-[10px]">{lang === 'fi' ? 'Vuoron tila' : 'Shift workflow status'}</label>
+                              <div className="flex gap-2 font-bold select-none">
+                                {(['Planned', 'Active', 'Completed'] as const).map(st => (
+                                  <button
+                                    key={st}
+                                    type="button"
+                                    onClick={() => setNewShiftStatus(st)}
+                                    className={`flex-1 py-1.5 border text-[10px] rounded-lg transition-all cursor-pointer ${
+                                      newShiftStatus === st 
+                                        ? 'bg-[#1B4332] border-[#1B4332] text-white' 
+                                        : 'bg-white border-[#E0E4DC] text-gray-500'
+                                    }`}
+                                  >
+                                    {st === 'Planned' ? (lang === 'fi' ? 'Suunniteltu' : 'Planned') : st === 'Active' ? (lang === 'fi' ? 'Käynnissä' : 'Active') : (lang === 'fi' ? 'Valmis' : 'Completed')}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            <button
+                              type="submit"
+                              className="w-full bg-[#1B4332] hover:bg-[#20513d] text-white py-2 rounded-xl font-bold transition-all mt-2 cursor-pointer text-center"
+                            >
+                              {lang === 'fi' ? 'Julkaise & lähetä siivoojalle' : 'Deploy Operational Shift'}
+                            </button>
+                          </form>
+                        </div>
+
+                        {/* 2. List of current schedules */}
+                        <div className="lg:col-span-2 space-y-4">
+                          
+                          {/* Search bar */}
+                          <div className="bg-[#FAFBF9] border border-[#E0E4DC] rounded-xl px-4 py-2 flex items-center gap-2">
+                            <Search className="w-4 h-4 text-gray-400 shrink-0" />
+                            <input
+                              type="text"
+                              className="w-full bg-transparent focus:outline-none placeholder-gray-400 text-xs text-gray-800"
+                              placeholder={lang === 'fi' ? 'Etsi vuoroja työntekijän tai asiakkaan nimellä...' : 'Find shift by checking employee or office site client...'}
+                              value={shiftSearch}
+                              onChange={(e) => setShiftSearch(e.target.value)}
+                            />
+                          </div>
+
+                          <div className="space-y-4">
+                            {filteredShifts.map((sh) => {
+                              return (
+                                <div key={sh.id} className="bg-white border border-[#E0E4DC] rounded-xl p-5 shadow-sm space-y-3.5 hover:border-[#CBDCCF] transition-all relative">
+                                  
+                                  {/* Header status details */}
+                                  <div className="flex justify-between items-start gap-4 flex-wrap">
+                                    <div>
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <h4 className="font-serif text-sm font-bold text-gray-900">{sh.clientName}</h4>
+                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                          sh.status === 'Completed' 
+                                            ? 'bg-emerald-100 text-emerald-800' 
+                                            : sh.status === 'Active' 
+                                            ? 'bg-amber-100 text-amber-800' 
+                                            : 'bg-blue-100 text-blue-800'
+                                        }`}>
+                                          {sh.status === 'Completed' ? (lang === 'fi' ? 'VALMIS ✓' : 'COMPLETED') : sh.status === 'Active' ? (lang === 'fi' ? 'KÄYNNISSÄ...' : 'ACTIVE') : (lang === 'fi' ? 'SUUNNITELTU' : 'PLANNED')}
+                                        </span>
+                                      </div>
+                                      <p className="text-[#5C6F63] text-xs font-semibold mt-1">
+                                        👤 {sh.employeeName} • 📅 {sh.date} ({sh.timeWindow})
+                                      </p>
+                                    </div>
+
+                                    {/* Action items */}
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        onClick={() => handleDeleteShift(sh.id)}
+                                        className="text-red-400 hover:text-red-600 p-1.5 hover:bg-red-50 rounded-lg transition-all cursor-pointer"
+                                        title="Delete Shift"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Instructions block */}
+                                  <div className="bg-[#FAFBF9] border border-[#E0E4DC] p-3 rounded-lg text-xs space-y-1">
+                                    <span className="text-[10px] font-bold text-gray-400 tracking-wider uppercase">{lang === 'fi' ? 'Tehtävänkuvaus & SOP-ohjeistus' : 'Sanitation Checklist SOP'}</span>
+                                    <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
+                                      {sh.instructions}
+                                    </p>
+                                  </div>
+
+                                  {/* Rapid workflow state controls */}
+                                  <div className="flex items-center justify-between border-t border-gray-100 pt-3 flex-wrap gap-2">
+                                    <span className="text-[10px] text-gray-400 font-mono">ID: {sh.id}</span>
+                                    
+                                    <div className="flex items-center gap-1.5 text-[10px] font-bold">
+                                      <span className="text-gray-400">{lang === 'fi' ? 'Vaihda tila:' : 'Update task:'}</span>
+                                      <button 
+                                        type="button"
+                                        onClick={() => updateShiftStatus(sh.id, 'Planned')}
+                                        className={`px-2 py-1 rounded transition-all cursor-pointer ${sh.status === 'Planned' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                                      >
+                                        {lang === 'fi' ? 'Suunniteltu' : 'Planned'}
+                                      </button>
+                                      <button 
+                                        type="button"
+                                        onClick={() => updateShiftStatus(sh.id, 'Active')}
+                                        className={`px-2 py-1 rounded transition-all cursor-pointer ${sh.status === 'Active' ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                                      >
+                                        {lang === 'fi' ? 'Käynnissä' : 'Active'}
+                                      </button>
+                                      <button 
+                                        type="button"
+                                        onClick={() => updateShiftStatus(sh.id, 'Completed')}
+                                        className={`px-2 py-1 rounded transition-all cursor-pointer ${sh.status === 'Completed' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                                      >
+                                        {lang === 'fi' ? 'Valmis' : 'Completed'}
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                </div>
+                              );
+                            })}
+
+                            {filteredShifts.length === 0 && (
+                              <div className="bg-orange-50 border border-orange-100 p-8 rounded-2xl text-center text-[#A6623E]">
+                                <p className="font-serif text-sm font-bold">{lang === 'fi' ? 'Ei työvuoroja hakusanalla' : 'No shifts found.'}</p>
+                              </div>
+                            )}
+                          </div>
+
+                        </div>
+
+                      </div>
+
+                    </div>
+                  )}
+
+                  {/* TAB 4: OPERATIONAL ADVANCED OPERATIONS & INVENTORY */}
+                  {activeTab === 'operations' && (
+                    <div className="space-y-6 text-left">
+                      
+                      {/* Section Title */}
+                      <div>
+                        <h3 className="font-serif text-lg font-bold text-gray-900 border-b border-gray-100 pb-2">
+                          {lang === 'fi' ? 'Operatiivinen hallinta & Ekologisuus' : 'Operations Management, Eco-Inventory & SOP guidelines'}
+                        </h3>
+                        <p className="text-[#5C6F63] text-xs mt-1">
+                          {lang === 'fi' 
+                            ? 'Hallitse saapuvia verkkotarjouksia, ekologia-inventaariota ja yrityksen standarditoimintamenetelmiä.'
+                            : 'Monitor client requests, track supply levels with warning notifications, and update environmental guidelines.'
+                          }
+                        </p>
+                      </div>
+
+                      {/* Client Bookings Inbox from Online Form */}
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2">
+                          <Mail className="w-5 h-5 text-emerald-700 shrink-0" />
+                          <h4 className="font-serif text-base font-bold text-gray-900">
+                            {lang === 'fi' ? 'Asiakaskyselyt & Nettivaraukset (Form Submissions)' : 'Online Client Booking Inquiries & Requests'}
+                          </h4>
+                          <span className="bg-[#CBDCCF] text-[#1B4332] text-[10px] font-bold font-mono px-2 py-0.5 rounded-full">
+                            {bookings.filter(b => b.status === 'Received').length} {lang === 'fi' ? 'uutta' : 'new'}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {bookings.map((bk) => (
+                            <div key={bk.id} className="bg-[#FAFBF9] border border-[#E0E4DC] p-5 rounded-2xl space-y-3 hover:border-[#CBDCCF] transition-all flex flex-col justify-between">
+                              <div>
+                                <div className="flex justify-between items-start gap-4">
+                                  <div>
+                                    <h5 className="font-serif text-sm font-bold text-gray-900">{bk.companyName}</h5>
+                                    <p className="text-[#5C6F63] text-[11px] font-semibold mt-0.5">
+                                      📞 {bk.contactName} ({bk.phone}) • {bk.email}
+                                    </p>
+                                  </div>
+                                  
+                                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                                    bk.status === 'Converted' 
+                                      ? 'bg-emerald-100 text-emerald-800' 
+                                      : bk.status === 'Contacted' 
+                                      ? 'bg-purple-100 text-purple-800' 
+                                      : 'bg-blue-100 text-blue-800'
+                                  }`}>
+                                    {bk.status === 'Converted' ? (lang === 'fi' ? 'Muunnettu' : 'Converted') : bk.status === 'Contacted' ? (lang === 'fi' ? 'Otettu yhteys' : 'Contacted') : (lang === 'fi' ? 'Vastaanotettu' : 'New request')}
+                                  </span>
+                                </div>
+
+                                <div className="mt-3 grid grid-cols-3 gap-2 text-[10px] font-serif bg-white p-2 rounded-lg border border-[#E0E4DC] text-[#4A4A4A]">
+                                  <div>
+                                    <strong className="block text-gray-400 text-[8px] uppercase">{lang === 'fi' ? 'PALVELU' : 'SERVICE'}</strong>
+                                    {bk.serviceType === 'weekly_clean' ? (lang === 'fi' ? 'Säännöllinen' : 'Weekly Clean') : (lang === 'fi' ? 'Erikois / Suursiivous' : 'heavy Cleanup')}
+                                  </div>
+                                  <div>
+                                    <strong className="block text-gray-400 text-[8px] uppercase">{lang === 'fi' ? 'KOKO' : 'FACILITY'}</strong>
+                                    {bk.officeSize === 'small' ? '< 150m²' : bk.officeSize === 'medium' ? '150-500m²' : '500m² +'}
+                                  </div>
+                                  <div>
+                                    <strong className="block text-gray-400 text-[8px] uppercase">{lang === 'fi' ? 'TARVITTU PVM' : 'REQUESTED DATE'}</strong>
+                                    {bk.startDate}
+                                  </div>
+                                </div>
+
+                                {bk.notes && (
+                                  <p className="text-[11px] text-[#5C6F63] leading-relaxed italic mt-2.5 bg-gray-50 border border-[#E0E4DC]/45 p-2 rounded-lg">
+                                    " {bk.notes} "
+                                  </p>
+                                )}
+                              </div>
+
+                              <div className="pt-3 border-t border-gray-100 flex justify-between items-center text-[10px] gap-2 font-bold font-sans">
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    setEditingPerformanceShiftId(shift.id);
-                                    setPerfTimeTracked('');
-                                    setPerfFeedback('');
-                                    setPerfShiftNotes('');
-                                  }}
-                                  className="w-full bg-[#FAFAF8] hover:bg-[#F2F4F0] border border-dashed border-[#C5D0C9] text-center py-2 rounded-xl text-[11px] text-[#5C6F63] font-bold transition-all hover:text-[#1B4332] cursor-pointer flex items-center justify-center gap-1"
+                                  onClick={() => deleteBooking(bk.id)}
+                                  className="text-red-500 hover:text-red-700 hover:bg-red-50 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer"
                                 >
-                                  📝 {lang === 'fi' ? 'Kirjaa työntekijän suoritus / tunnit' : 'Log Employee Performance / Hours'}
+                                  {lang === 'fi' ? 'Poista' : 'Dismiss'}
                                 </button>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
 
-                      {/* Footer containing staff name details */}
-                      <div className="mt-5 pt-4 border-t border-[#E0E4DC]/60 flex items-center justify-between text-xs font-semibold">
-                        <span className="text-[#5C6F63]">{lang === 'fi' ? 'Määrätty työntekijä:' : 'Assigned cleaner'}:</span>
-                        <span className="text-[#1B4332] font-black bg-[#95C4A1]/15 px-3 py-1 rounded-md">
-                          🌿 {shift.employeeName}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Unified performance logs aggregate table */}
-                <div className="bg-white border border-[#E0E4DC] rounded-xl p-6 mt-8 shadow-sm">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-gray-100 pb-4">
-                    <div>
-                      <h4 className="font-serif text-base font-bold text-[#1A1A1A]">
-                        📊 {lang === 'fi' ? 'Työntekijöiden suoritusraportit ja kokonaiskuva' : 'Employee Performance Log Aggregate'}
-                      </h4>
-                      <p className="text-[11px] text-[#5C6F63] mt-0.5">
-                        {lang === 'fi' ? 'Toteutuneet tunnit, poikkeamat ja työntekijäkohtaiset arvioinnit.' : 'Summary of logged times, feedback rating, and recorded shift operational notes.'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="overflow-x-auto mt-4 rounded-xl border border-[#E0E4DC]">
-                    <table className="w-full text-left text-xs bg-white">
-                      <thead className="bg-[#FAFAF7] uppercase text-[9px] tracking-wider text-[#5C6F63] border-b border-[#E0E4DC]">
-                        <tr>
-                          <th className="p-4 font-bold">{lang === 'fi' ? 'Työntekijä' : 'Employee'}</th>
-                          <th className="p-4 font-bold">{lang === 'fi' ? 'Asiakas / Kohde' : 'Client Space'}</th>
-                          <th className="p-4 font-bold">{lang === 'fi' ? 'Päiväys' : 'Date'}</th>
-                          <th className="p-4 font-bold text-center">{lang === 'fi' ? 'Toteutuneet tunnit' : 'Tracked Hours'}</th>
-                          <th className="p-4 font-bold">{lang === 'fi' ? 'Huomiot ja laatu' : 'Shift Notes'}</th>
-                          <th className="p-4 font-bold">{lang === 'fi' ? 'Palaute' : 'Feedback'}</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#E0E4DC]/40 font-medium font-sans">
-                        {shifts.filter(s => s.timeTracked || s.feedback || s.shiftNotes).length === 0 ? (
-                          <tr>
-                            <td colSpan={6} className="p-8 text-center text-gray-400 italic font-normal">
-                              {lang === 'fi' ? 'Ei kirjattuja suoritusraportteja vielä. Klikkaa yltä "Kirjaa työntekijän suoritus".' : 'No performance logs recorded yet. Use button logs on shift cards above.'}
-                            </td>
-                          </tr>
-                        ) : (
-                          shifts.filter(s => s.timeTracked || s.feedback || s.shiftNotes).map(s => (
-                            <tr key={s.id} className="hover:bg-[#FFF] transition-colors">
-                              <td className="p-4 font-bold text-[#1B4332] whitespace-nowrap">🌿 {s.employeeName}</td>
-                              <td className="p-4 font-semibold text-gray-800 whitespace-nowrap">{s.clientName}</td>
-                              <td className="p-4 font-mono text-gray-500 whitespace-nowrap">{s.date}</td>
-                              <td className="p-4 text-center whitespace-nowrap font-mono">
-                                <span className="bg-[#95C4A1]/20 px-2.5 py-0.5 rounded-full font-bold text-[#1B4332]">
-                                  {s.timeTracked ? `${s.timeTracked} h` : '-- h'}
-                                </span>
-                              </td>
-                              <td className="p-4 text-gray-600 max-w-xs truncate" title={s.shiftNotes}>
-                                {s.shiftNotes || '-'}
-                              </td>
-                              <td className="p-4 text-gray-600 italic max-w-xs truncate" title={s.feedback}>
-                                {s.feedback || '-'}
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-              </div>
-
-            </div>
-          )}
-
-          {/* TAB 3: ASSET PHOTO GALLERY & MANAGER */}
-          {activeTab === 'gallery' && (
-            <div className="space-y-8">
-              
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                
-                {/* Upload Section (4-cols) */}
-                <div className="lg:col-span-4 bg-white border border-[#E0E4DC] rounded-2xl p-6 shadow-sm">
-                  <div>
-                    <h3 className="font-serif text-lg font-bold text-[#1A1A1A]">
-                      {lang === 'fi' ? 'Lisää uusi valokuva' : 'Add Corporate Photo Asset'}
-                    </h3>
-                    <p className="text-xs text-[#5C6F63] mt-1">
-                      {lang === 'fi' 
-                        ? 'Lataa todisteitamme siivouksen laadusta. Kuvat muunnetaan paikallisiksi ja ne säilyvät galleriassasi.' 
-                        : 'Upload high-resolution proofs of pristine work. Images are converted instantly and stored locally.'
-                      }
-                    </p>
-                  </div>
-
-                  {/* HTML File Upload Drag/Drop Form */}
-                  <form onSubmit={handleAddPhoto} className="mt-6 space-y-4 text-xs font-bold font-sans">
-                    
-                    {/* Visual custom upload wrapper */}
-                    <div className="space-y-2">
-                      <span className="block text-[#4A4A4A] uppercase tracking-wider">{lang === 'fi' ? 'Valitse kuva laitteelta' : 'Select Image File'}</span>
-                      <div className="border-2 border-dashed border-[#95C4A1] hover:border-[#1B4332] rounded-xl p-4 text-center cursor-pointer transition-colors relative bg-[#F9FBF9] h-[130px] flex flex-col items-center justify-center">
-                        <input
-                          key={fileInputKey}
-                          type="file"
-                          accept="image/*"
-                          required={!filePreview}
-                          onChange={handlePhotoFileChange}
-                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                        />
-                        {filePreview ? (
-                          <div className="relative w-full h-full">
-                            <img 
-                              src={filePreview} 
-                              alt="Upload preview cache" 
-                              className="w-full h-full object-contain rounded-lg"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setFilePreview(null)}
-                              className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 border border-white hover:bg-red-700"
-                              title="Clear photo"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="space-y-1.5 text-center flex flex-col items-center justify-center text-[#5C6F63]">
-                            <Upload className="w-8 h-8 text-[#95C4A1]" />
-                            <p className="text-[11px] leading-relaxed">
-                              {lang === 'fi' ? 'Raahaa kuva tähän tai klikkaa selaamaan' : 'Drag image here or click to browse'}
-                            </p>
-                            <p className="text-[9px] text-gray-400 font-normal">PNG, JPG, TIFF up to 5MB</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Image Title input */}
-                    <div>
-                      <label className="block text-[#4A4A4A] mb-1.5 uppercase tracking-wider">{lang === 'fi' ? 'Kuvan Otsikko' : 'Image Title'}</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder={lang === 'fi' ? 'Esim. Tapiolan Lounge-työpisteet...' : 'Esim. Safe touchpoint sanitized...'}
-                        className="w-full border border-[#E0E4DC] bg-[#FAFAF8] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1B4332]"
-                        value={newPhotoTitle}
-                        onChange={(e) => setNewPhotoTitle(e.target.value)}
-                      />
-                    </div>
-
-                    {/* Image Category details selection */}
-                    <div>
-                      <label className="block text-[#4A4A4A] mb-1.5 uppercase tracking-wider">{lang === 'fi' ? 'Kategoria' : 'Category'}</label>
-                      <select
-                        className="w-full border border-[#E0E4DC] bg-white rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:border-[#1B4332]"
-                        value={newPhotoCat}
-                        onChange={(e: any) => setNewPhotoCat(e.target.value)}
-                      >
-                        <option value="Office">{lang === 'fi' ? 'Toimistotilat' : 'Office Sites'}</option>
-                        <option value="BeforeAfter">{lang === 'fi' ? 'Ennen ja Jälkeen' : 'Before / After'}</option>
-                        <option value="Special">{lang === 'fi' ? 'Erikoispesut' : 'Special Sanitizing'}</option>
-                        <option value="Team">{lang === 'fi' ? 'Siivoustiimi' : 'Our Team'}</option>
-                      </select>
-                    </div>
-
-                    {/* Brief description meta */}
-                    <div>
-                      <label className="block text-[#4A4A4A] mb-1.5 uppercase tracking-wider">{lang === 'fi' ? 'Kuvaus / Yksityiskohdat' : 'Short Description'}</label>
-                      <textarea
-                        rows={3}
-                        placeholder={lang === 'fi' ? 'Kuvaile lyhyesti mitä työtä kuva esittää ja mihin tuloksiin päästiin...' : 'Briefly detail the operational results...'}
-                        className="w-full border border-[#E0E4DC] bg-[#FAFAF8] rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-[#1B4332] resize-none"
-                        value={newPhotoDesc}
-                        onChange={(e) => setNewPhotoDesc(e.target.value)}
-                      />
-                    </div>
-
-                    {/* Save Photo CTA */}
-                    <button
-                      type="submit"
-                      className="w-full bg-[#1B4332] hover:bg-[#20513d] text-white py-2.5 rounded-xl font-bold flex items-center justify-center gap-1.5 cursor-pointer text-xs"
-                    >
-                      <ImageIcon className="w-4 h-4 text-[#95C4A1]" />
-                      <span>{lang === 'fi' ? 'Lisää kuvagalleriaan' : 'Publish Asset to Gallery'}</span>
-                    </button>
-                  </form>
-                </div>
-
-                {/* Display Grid Lists of photos (8-cols) */}
-                <div className="lg:col-span-8 bg-white border border-[#E0E4DC] rounded-2xl p-6 shadow-sm">
-                  <div>
-                    <h3 className="font-serif text-lg font-bold text-[#1A1A1A]">
-                      {lang === 'fi' ? 'Tallennettujen valokuvien hallinta' : 'Operational Workspace Photo Bank'}
-                    </h3>
-                    <p className="text-xs text-[#5C6F63] mt-1">
-                      {lang === 'fi' ? 'Tarkastele, suodata tai poista kuvatositeasiakirjoja.' : 'Audit, filter, and delete photographic workspace records.'}
-                    </p>
-                  </div>
-
-                  {/* Pictures rendering list */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-6">
-                    {photos.map(p => (
-                      <div 
-                        key={p.id} 
-                        className="border border-[#E0E4DC] rounded-xl overflow-hidden hover:shadow-md transition-all flex flex-col justify-between"
-                      >
-                        {/* Interactive Frame preview */}
-                        <div className="relative h-44 bg-[#F2F4F0] select-none">
-                          <img 
-                            src={p.url} 
-                            alt={p.title} 
-                            className="w-full h-full object-cover"
-                          />
-                          <span className="absolute top-2 left-2 bg-[#1B4332]/90 text-white text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-md backdrop-blur-sm">
-                            {p.category}
-                          </span>
-                          
-                          <button
-                            onClick={() => handleDeletePhoto(p.id)}
-                            className="absolute top-2 right-2 bg-black/55 text-white hover:bg-red-600 rounded-full p-2 border border-white/10 hover:border-white transition-all duration-150 cursor-pointer"
-                            title="Delete Photo"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-
-                        {/* Text summary below */}
-                        <div className="p-4 space-y-1 bg-white">
-                          <h4 className="font-serif text-sm font-bold text-[#1A1A1A] line-clamp-1">
-                            {p.title}
-                          </h4>
-                          <p className="text-[11px] text-[#4A4A4A] leading-relaxed line-clamp-2">
-                            {p.description || (lang === 'fi' ? 'Ei kuvausta asetettu.' : 'No descriptive overview.')}
-                          </p>
-                          <div className="flex items-center justify-between pt-2 mt-2 border-t border-gray-100 text-[9px] text-[#7A7A7A] font-mono font-semibold">
-                            <span>ID: {p.id}</span>
-                            <span>{lang === 'fi' ? 'Tallennettu:' : 'Uploaded:'} {p.uploadedAt}</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {photos.length === 0 && (
-                    <div className="text-center py-16 text-[#5C6F63]">
-                      <ImageIcon className="w-12 h-12 opacity-30 mx-auto mb-3" />
-                      <p className="text-sm font-semibold">{lang === 'fi' ? 'Ei valokuvia tallennettuna.' : 'No active workspace photos yet.'}</p>
-                      <p className="text-xs text-gray-500 mt-1">{lang === 'fi' ? 'Käytä vasemman laidan lataustyökalua lisätäksesi kuvan!' : 'Use the file upload field to list new assets.'}</p>
-                    </div>
-                  )}
-                </div>
-
-              </div>
-
-            </div>
-          )}
-
-          {/* TAB 4: LIVE GEMINI SALES CAMPAIGN & OUTREACH LEADS */}
-          {activeTab === 'leads' && (
-            <div className="space-y-8">
-              
-              {/* Introduction card */}
-              <div className="bg-gradient-to-br from-[#1B4332] to-[#0D2B1E] text-white rounded-2xl p-6 sm:p-8 md:p-10 shadow-lg relative overflow-hidden">
-                <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(#95C4A1_1px,transparent_1px)] [background-size:24px_24px]" />
-                
-                <div className="max-w-2xl relative z-10 space-y-3">
-                  <span className="inline-flex items-center gap-1.5 text-[10px] font-bold tracking-widest uppercase bg-[#95C4A1]/20 border border-[#95C4A1]/30 text-[#95C4A1] px-2.5 py-1 rounded-md">
-                    <Cpu className="w-3.5 h-3.5" /> {lang === 'fi' ? 'REAALIAIKAINEN GROUNDING BOTTIPANEELI' : 'REAL-TIME GROUNDING INTELLIGENCE'}
-                  </span>
-                  <h2 className="font-serif text-2xl sm:text-3xl font-bold text-white tracking-tight">
-                    {lang === 'fi' ? '✦ Puhdas Tila · Kasvualusta & Liidibotti' : '✦ Puhdas Tila · Corporate Growth Catalyst'}
-                  </h2>
-                  <p className="text-white/70 text-sm sm:text-base leading-relaxed">
-                    {lang === 'fi'
-                      ? 'Skannaa internetin reaaliaikaista dataa ja löydä uusia yritysasiakkaita pääkaupunkiseudulla varmistaaksesi Puhdas Tila -siivouspalveluiden tasaisen kasvun.'
-                      : 'Crawl the live internet and extract verified leads across Uusimaa commercial sectors. Zero obsolete data—pure verified pipelines.'
-                    }
-                  </p>
-                </div>
-              </div>
-
-              {/* Advanced search parameters (Grid) */}
-              <div className="bg-white border border-[#E0E4DC] rounded-2xl p-6 shadow-sm">
-                <h3 className="font-serif text-base font-bold text-[#1A1A1A] mb-6 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#1B4332]" />
-                  {lang === 'fi' ? 'Minkä tyyppisiä toimitiloja haluat etsiä tänään?' : 'Define target office profiles and locations:'}
-                </h3>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-xs font-bold">
-                  {/* Category selections dropdown */}
-                  <div className="space-y-1.5">
-                    <label className="text-[#4A4A4A] uppercase tracking-wider">{lang === 'fi' ? 'Yrityskategoria / Toimiala' : 'Industry sector'}</label>
-                    <div className="flex gap-2">
-                      <select
-                        className="flex-1 border border-[#E0E4DC] bg-white rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:border-[#1B4332]"
-                        value={targetType}
-                        onChange={(e) => {
-                          setTargetType(e.target.value);
-                          setCustomTarget('');
-                        }}
-                      >
-                        <option value="Hammasklinikat (Dental clinics)">{lang === 'fi' ? 'Hammasklinikat & Lääkäriasemat' : 'Dental & Medical Clinics'}</option>
-                        <option value="Lakitoimistot (Law firms)">{lang === 'fi' ? 'Lakiasiaintoimistot & Konsultit' : 'Law Firms & Advisors'}</option>
-                        <option value="Markkinointitoimistot (Marketing agencies)">{lang === 'fi' ? 'Mainos- ja Viestintätoimistot' : 'Marketing & Ad Studios'}</option>
-                        <option value="Yksityiset päiväkodit (Private kindergartens)">{lang === 'fi' ? 'Yksityiset päiväkodit' : 'Private Kindergartens'}</option>
-                        <option value="IT- ja ohjelmistoyritykset (Software companies)">{lang === 'fi' ? 'IT- ja Teknologia-alan toimitilat' : 'Software & IT Workspaces'}</option>
-                        <option value="Kuntosalit ja studio-tilat (Gyms and studios)">{lang === 'fi' ? 'Kuntosalit & Liikuntastudiot' : 'Fitness Centers & Gyms'}</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Custom overrides input for sector */}
-                  <div className="space-y-1.5">
-                    <label className="text-[#4A4A4A] uppercase tracking-wider">{lang === 'fi' ? 'Hae vapaalla hakusanalla' : 'Or search by custom sector keyword'}</label>
-                    <input
-                      type="text"
-                      className="w-full border border-[#E0E4DC] bg-[#FAFAF8] rounded-lg px-3 py-2 text-sm font-normal focus:outline-none focus:border-[#1B4332]"
-                      placeholder={lang === 'fi' ? 'Esim. lakitoimistot, kuntosalit...' : 'E.g. architect studios, pilates...'}
-                      value={customTarget}
-                      onChange={(e) => setCustomTarget(e.target.value)}
-                    />
-                  </div>
-
-                  {/* Location picker */}
-                  <div className="space-y-1.5">
-                    <label className="text-[#4A4A4A] uppercase tracking-wider">{lang === 'fi' ? 'Sijainti / Kaupunginosa' : 'Focus location'}</label>
-                    <select
-                      className="w-full border border-[#E0E4DC] bg-white rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:border-[#1B4332]"
-                      value={location}
-                      onChange={(e) => {
-                        setLocation(e.target.value);
-                        setCustomLocation('');
-                      }}
-                    >
-                      <option value="Espoo">Espoo (Laajahaku / Wide search)</option>
-                      {espooDistricts.map(d => (
-                        <option key={d.key} value={d.key}>
-                          {lang === 'fi' ? d.label_fi : d.label_en}
-                        </option>
-                      ))}
-                      <option value="Helsinki">Helsinki (Laajahaku)</option>
-                      <option value="Kauniainen">Kauniainen</option>
-                      <option value="Vantaa">Vantaa (Laajahaku)</option>
-                    </select>
-                  </div>
-
-                  {/* Custom location override keyword */}
-                  <div className="space-y-1.5">
-                    <label className="text-[#4A4A4A] uppercase tracking-wider">{lang === 'fi' ? 'Omavalintainen Sijainti' : 'Or enter custom location'}</label>
-                    <input
-                      type="text"
-                      className="w-full border border-[#E0E4DC] bg-[#FAFAF8] rounded-lg px-3 py-2 text-sm font-normal focus:outline-none focus:border-[#1B4332]"
-                      placeholder={lang === 'fi' ? 'Esim. Tapiola, Ruoholahti...' : 'E.g. Lauttasaari, Mankkaa...'}
-                      value={customLocation}
-                      onChange={(e) => setCustomLocation(e.target.value)}
-                    />
-                  </div>
-
-                  {/* Campaign tone */}
-                  <div className="space-y-1.5">
-                    <label className="text-[#4A4A4A] uppercase tracking-wider">{lang === 'fi' ? 'Yhteydenotto-sävy ja tyyli' : 'Campaign tone'}</label>
-                    <select
-                      className="w-full border border-[#E0E4DC] bg-white rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:border-[#1B4332]"
-                      value={tone}
-                      onChange={(e: any) => setTone(e.target.value)}
-                    >
-                      <option value="professional">{lang === 'fi' ? 'Asiallinen & Ammattimainen' : 'Business Professional'}</option>
-                      <option value="casual">{lang === 'fi' ? 'Rento & Ketterä (Startupeille)' : 'Startup Casual'}</option>
-                      <option value="savings">{lang === 'fi' ? 'Matalat kulut & Ei pitkää sitoutumista' : 'Value & Flexibility focused'}</option>
-                    </select>
-                  </div>
-
-                  {/* Projected target client office size */}
-                  <div className="space-y-1.5">
-                    <label className="text-[#4A4A4A] uppercase tracking-wider">{lang === 'fi' ? 'Arvioitu työtilojen koko' : 'Assumed office size'}</label>
-                    <select
-                      className="w-full border border-[#E0E4DC] bg-white rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:border-[#1B4332]"
-                      value={officeSize}
-                      onChange={(e: any) => setOfficeSize(e.target.value)}
-                    >
-                      <option value="small">{lang === 'fi' ? 'Pieni toimisto (alle 15 pöytää)' : 'Small Office (< 15 desks)'}</option>
-                      <option value="medium">{lang === 'fi' ? 'Keskikokoinen (15-50 pöytää)' : 'Medium Office (15-50 desks)'}</option>
-                      <option value="large">{lang === 'fi' ? 'Suuri tai Pääkonttori (>50 pöytää)' : 'Large Headquarters (>50 desks)'}</option>
-                    </select>
-                  </div>
-
-                  {/* Promotional signatories/hooks proposed */}
-                  <div className="space-y-1.5 md:col-span-2">
-                    <label className="text-[#4A4A4A] uppercase tracking-wider">{lang === 'fi' ? 'Kampanjaetu / Yhteydenottotarjous' : 'Promotional sign-in incentive'}</label>
-                    <select
-                      className="w-full border border-[#E0E4DC] bg-white rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:border-[#1B4332]"
-                      value={offer}
-                      onChange={(e: any) => setOffer(e.target.value)}
-                    >
-                      <option value="estimate">{lang === 'fi' ? 'Maksuton 3 minuutin katselmus paikan päällä sitoumuksetta' : 'Free, non-binding 3-minute physical walkthrough'}</option>
-                      <option value="discount">{lang === 'fi' ? '15 % alennus ensimmäisestä kuukaudesta uuden asiakkuuden kunniaksi' : 'Special signing incentive of 15% discount for first month'}</option>
-                      <option value="bonus">{lang === 'fi' ? 'Ilmainen ikkunanpesu siivouksen starttikuun yhteyteen' : 'Free window washing on signatures in first month'}</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[#4A4A4A] uppercase tracking-wider">{lang === 'fi' ? 'Sähköpostiluonnoksen kieli' : 'Outreach draft language'}</label>
-                    <div className="flex gap-2 text-sm">
-                      <button
-                        type="button"
-                        onClick={() => setLeadLang('fi')}
-                        className={`flex-1 py-1 px-3 border rounded-lg transition-all cursor-pointer ${
-                          leadLang === 'fi' ? 'bg-[#1B4332] text-white border-[#1B4332]' : 'bg-white text-gray-700 border-[#E0E4DC]'
-                        }`}
-                      >
-                        Suomi (FI)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setLeadLang('en')}
-                        className={`flex-1 py-1 px-3 border rounded-lg transition-all cursor-pointer ${
-                          leadLang === 'en' ? 'bg-[#1B4332] text-white border-[#1B4332]' : 'bg-white text-gray-700 border-[#E0E4DC]'
-                        }`}
-                      >
-                        English (EN)
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-8 flex justify-end">
-                  <button
-                    onClick={handleGenerateLeads}
-                    disabled={isLoadingLeads}
-                    className="w-full sm:w-auto bg-[#1B4332] hover:bg-[#20513d] text-white font-bold py-3.5 px-8 rounded-xl text-xs sm:text-sm tracking-wide uppercase transition-all duration-150 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-55"
-                  >
-                    {isLoadingLeads ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 animate-spin text-[#95C4A1]" />
-                        <span>{leadStatusMsg || (lang === 'fi' ? 'Skannataan...' : 'Crawling...') }</span>
-                      </>
-                    ) : (
-                      <>
-                        <Search className="w-4 h-4 text-[#95C4A1]" />
-                        <span>{lang === 'fi' ? 'Käynnistä haku internetistä' : 'Execute Grounded Live Crawl'}</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* SEARCH GROUNDING ERRORS & WARNINGS */}
-              {leadsError && (
-                <div className="bg-red-50 border border-red-200 p-4 rounded-xl flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-                  <div>
-                    <h4 className="font-serif text-sm font-bold text-red-950">{lang === 'fi' ? 'Haku päättyi virheeseen' : 'Crawl Process Interrupted'}</h4>
-                    <p className="text-xs text-red-800 mt-1">{leadsError}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* OUTREACH SCANS LEAD RESULTS */}
-              {editableLeads.length > 0 && (
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-serif text-lg font-bold text-[#1A1A1A]">
-                      {lang === 'fi' 
-                        ? `Löytyneet liidikohteet kategorialle "${customTarget.trim() ? customTarget : targetType}"` 
-                        : `Qualified pipelines for "${customTarget.trim() ? customTarget : targetType}"`
-                      }
-                    </h3>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-[#1B4332] bg-[#95C4A1]/20 px-3 py-1 rounded-full border border-[#95C4A1]/35">
-                      {editableLeads.length} {lang === 'fi' ? 'LIIDIÄ LÖYDETTY' : 'CRAWLED LEADS'}
-                    </span>
-                  </div>
-
-                  {/* Sender Integration Settings */}
-                  <div className="bg-[#FAFBF9] border border-[#E0E4DC] rounded-xl p-5 shadow-sm space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Mail className="w-5 h-5 text-[#1B4332]" />
-                      <h4 className="font-serif text-sm font-bold text-[#1A1A1A]">
-                        {lang === 'fi' ? 'Suoran sähköpostilähetyksen brändi-identiteetti' : 'Direct Outreach Dispatch Identity'}
-                      </h4>
-                    </div>
-                    
-                    <p className="text-xs text-[#5C6F63] leading-relaxed">
-                      {lang === 'fi'
-                        ? 'Järjestelmä on integroitu Resend-sähköpostipalveluun. Jos käytät ilmaista testisandboxia, voit lähettää viestejä vain osoitteesta "onboarding@resend.dev" rekisteröityyn käyttäjäsähköpostiisi. Jos olet liittänyt ja vahvistanut oman domainisi (kuten puhdas-tila.com), voit muuttaa lähettäjäksi vapaasti oman brändisi osoitteen.'
-                        : 'Your ERP connects with Resend. In trial/sandbox environments, you must send using "onboarding@resend.dev" delivering to your personal developer email. If you have verified your custom domain, you may input your official staff email.'
-                      }
-                    </p>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-bold font-sans">
-                      <div className="space-y-1.5">
-                        <label className="text-[#4A4A4A] uppercase tracking-wider">{lang === 'fi' ? 'Lähettäjän osoite (From)' : 'Sender Identity (From)'}</label>
-                        <input
-                          type="text"
-                          className="w-full border border-[#E0E4DC] bg-white rounded-lg px-3 py-2 text-xs font-bold text-gray-800 focus:outline-[#1B4332]"
-                          placeholder="Puhdas Tila <onboarding@resend.dev>"
-                          value={senderEmail}
-                          onChange={(e) => setSenderEmail(e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-1.5 self-end">
-                        <div className="text-[11px] text-[#2D3E32] font-semibold bg-[#FAFAF7] px-3.5 py-2.5 rounded-lg border border-[#E0E4DC]">
-                          💡 <strong>PRO TIP:</strong> {lang === 'fi' ? 'Määritä RESEND_API_KEY salaisuuksissa sähköpostitoimintoa varten.' : 'Ensure RESEND_API_KEY is configured in your project settings.'}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Loop rendering Leads mapping cards */}
-                  <div className="space-y-8">
-                    {editableLeads.map((lead, idx) => (
-                      <div key={idx} className="bg-white border border-[#E0E4DC] rounded-2xl overflow-hidden shadow-sm flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-gray-100">
-                        {/* Left client profiles (5-cols/12) */}
-                        <div className="md:w-5/12 p-6 space-y-4">
-                          <div className="space-y-1">
-                            <span className="text-[10px] text-gray-400 font-mono">LEAD RECORD #{idx+1}</span>
-                            <h4 className="font-serif text-lg font-bold text-[#1A1A1A]">{lead.name}</h4>
-                          </div>
-
-                          {/* Client Coordinates fields */}
-                          <div className="space-y-2 text-xs text-[#4A4A4A] font-semibold">
-                            {lead.address && (
-                              <p className="flex items-center gap-2">
-                                <MapPin className="w-4 h-4 text-[#95C4A1]/85 shrink-0" />
-                                <span>{lead.address}</span>
-                              </p>
-                            )}
-                            {lead.website && (
-                              <p className="flex items-center gap-2">
-                                <Globe className="w-4 h-4 text-[#95C4A1]/85 shrink-0" />
-                                <a 
-                                  href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer" 
-                                  className="text-[#1B4332] hover:underline flex items-center gap-1"
-                                >
-                                  <span>{lead.website}</span>
-                                  <ExternalLink className="w-3 h-3 opacity-65" />
-                                </a>
-                              </p>
-                            )}
-                            {lead.email && (
-                              <p className="flex items-center gap-2">
-                                <Mail className="w-4 h-4 text-[#95C4A1]/85 shrink-0" />
-                                <a href={`mailto:${lead.email}`} className="text-gray-600 hover:underline">{lead.email}</a>
-                              </p>
-                            )}
-                            {lead.phone && (
-                              <p className="flex items-center gap-2">
-                                <Phone className="w-4 h-4 text-[#95C4A1]/85 shrink-0" />
-                                <a href={`tel:${lead.phone}`} className="text-gray-600 hover:underline">{lead.phone}</a>
-                              </p>
-                            )}
-                          </div>
-
-                          {/* Trigger point analysis why good lead */}
-                          <div className="bg-[#FAFBF9] border-l-2 border-[#1B4332] p-3 rounded-r-lg text-xs leading-relaxed text-[#4A4A4A]">
-                            <strong className="block text-[#1B4332] font-semibold mb-1">
-                              {lang === 'fi' ? '💡 Miksi erinomainen kohde Puhdas Tilan siivoukselle:' : '💡 Strategic Cleaning Indicator:'}
-                            </strong>
-                            <p className="italic font-medium">{lead.whyGoodLead}</p>
-                          </div>
-                        </div>
-
-                        {/* Right Outreach Template (7-cols) */}
-                        <div className="md:w-7/12 p-6 flex flex-col justify-between bg-gradient-to-br from-white to-[#FAFBF9]">
-                          <div className="space-y-4">
-                            <span className="block text-[10px] font-bold text-[#4A4A4A] uppercase tracking-wider">
-                              {lang === 'fi' ? 'Sähköpostiluonnos (Klikkaa ja muokkaa suoraan):' : 'Interactive Customer Pitch sequences:'}
-                            </span>
-                            
-                            {/* Subject input */}
-                            <div>
-                              <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">{lang === 'fi' ? 'Aihe' : 'Subject'}</label>
-                              <input 
-                                type="text"
-                                className="w-full border border-[#E0E4DC] bg-white rounded-lg px-3 py-1.5 text-xs font-bold text-[#1A1A1A]"
-                                value={lead.outreachEmailSubject}
-                                onChange={(e) => handleLeadSubjectChange(idx, e.target.value)}
-                              />
-                            </div>
-
-                            {/* Body Textarea */}
-                            <div>
-                              <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">{lang === 'fi' ? 'Viestin Sisältö' : 'Email Content'}</label>
-                              <textarea
-                                rows={8}
-                                className="w-full border border-[#E0E4DC] bg-white rounded-lg p-3 text-xs font-normal font-sans leading-relaxed text-gray-800"
-                                value={lead.outreachEmailBody}
-                                onChange={(e) => handleLeadBodyChange(idx, e.target.value)}
-                              />
-                            </div>
-                          </div>
-
-                          {/* Sending logs feedback */}
-                          {sendError && sendingIndex === idx && (
-                            <div className="mb-3 text-red-600 bg-red-50 border border-red-200 rounded-xl p-3 text-[11px] font-semibold leading-relaxed flex items-start gap-2">
-                              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
-                              <span>⚠️ {sendError}</span>
-                            </div>
-                          )}
-                          {sendSuccessMsg && sentIndices.includes(idx) && !sendingIndex && (
-                            <div className="mb-3 text-[#1B4332] bg-[#F0F5F1] border border-[#D5E4DB] rounded-xl p-3 text-[11px] font-semibold leading-relaxed flex items-start gap-2">
-                              <Check className="w-4 h-4 shrink-0 mt-0.5 text-emerald-600" />
-                              <span>✓ {sendSuccessMsg}</span>
-                            </div>
-                          )}
-
-                          {/* Copy buttons row */}
-                          <div className="pt-4 flex flex-col sm:flex-row gap-3 items-center justify-between border-t border-gray-100 mt-4">
-                            <span className="text-[10px] text-[#7A7A7A] italic">
-                              {lang === 'fi' ? 'Toimii tekoälypohjaisella hakujärjestelmällä.' : 'Requires Resend or copy for execution.'}
-                            </span>
-                            <div className="flex flex-wrap gap-2 justify-end w-full sm:w-auto">
-                              <button
-                                onClick={() => copyToClipboard(lead.outreachEmailBody, idx)}
-                                className="flex items-center gap-1.5 bg-[#FAFBF9] hover:bg-[#F2F4F0] text-[#1B4332] border border-[#CBDCCF] px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer"
-                              >
-                                {copiedIndex === idx ? (
-                                  <>
-                                    <Check className="w-3.5 h-3.5" />
-                                    <span>{lang === 'fi' ? 'Kopioitu!' : 'Copied!'}</span>
-                                  </>
+                                {bk.status !== 'Converted' ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => convertBookingToShift(bk)}
+                                    className="bg-[#1B4332] hover:bg-[#20513d] text-white px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer transition-all shadow-sm"
+                                  >
+                                    <Calendar className="w-3.5 h-3.5 text-[#95C4A1]" />
+                                    <span>{lang === 'fi' ? 'Muunna työvuoroksi (Deploy Clean)' : 'Dispatch Shift'}</span>
+                                  </button>
                                 ) : (
-                                  <>
-                                    <Copy className="w-3.5 h-3.5" />
-                                    <span>{lang === 'fi' ? 'Kopioi sähköpostiviesti' : 'Copy Campaign sequence'}</span>
-                                  </>
+                                  <span className="text-emerald-700 italic flex items-center gap-1 font-semibold">
+                                    ✓ {lang === 'fi' ? 'Työvuoro aikataulutettu' : 'Shift dispatched successfully'}
+                                  </span>
                                 )}
-                              </button>
-
-                              {lead.email ? (
-                                <button
-                                  disabled={sendingIndex !== null || sentIndices.includes(idx)}
-                                  onClick={() => handleSendDirectEmail(idx, lead)}
-                                  className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer text-white ${
-                                    sentIndices.includes(idx)
-                                      ? 'bg-emerald-700 hover:bg-emerald-800'
-                                      : 'bg-[#1B4332] hover:bg-[#20513d]'
-                                  } disabled:opacity-55`}
-                                >
-                                  {sendingIndex === idx ? (
-                                    <>
-                                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                                      <span>{lang === 'fi' ? 'Lähetetään...' : 'Sending...'}</span>
-                                    </>
-                                  ) : sentIndices.includes(idx) ? (
-                                    <>
-                                      <Check className="w-3.5 h-3.5 text-[#95C4A1]" />
-                                      <span>{lang === 'fi' ? 'Lähetetty!' : 'Sent!'}</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Mail className="w-3.5 h-3.5 text-[#95C4A1]" />
-                                      <span>{lang === 'fi' ? 'Lähetä sähköposti' : 'Send via Resend'}</span>
-                                    </>
-                                  )}
-                                </button>
-                              ) : (
-                                <span className="text-[10px] text-gray-400 self-center font-bold px-3 py-1.5 bg-gray-100 rounded-lg italic">
-                                  {lang === 'fi' ? 'Sähköpostia ei löytynyt' : 'Email unavailable'}
-                                </span>
-                              )}
+                              </div>
                             </div>
-                          </div>
-                        </div>
+                          ))}
 
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Citation references sources list */}
-                  {leadsData?.sources && leadsData.sources.length > 0 && (
-                    <div className="bg-[#FAFAF7] border border-[#E0E4DC] rounded-xl p-4 text-xs font-semibold text-[#5C6F63]">
-                      <h4 className="font-serif font-bold text-[#1A1A1A] mb-2">{lang === 'fi' ? 'Reaaliaikaiset lähteet ja viittaukset:' : 'Citations and Real-time web links verified:'}</h4>
-                      <ul className="flex flex-wrap gap-2">
-                        {leadsData.sources.map((s, si) => (
-                          <li key={si}>
-                            <a 
-                              href={s.uri} 
-                              target="_blank" 
-                              rel="noopener noreferrer" 
-                              className="inline-flex items-center gap-1 bg-white border border-[#E0E4DC] hover:border-[#1B4332] text-[#1B4332] py-1 px-2.5 rounded-md"
-                            >
-                              <span>{s.title}</span>
-                              <ExternalLink className="w-3 h-3" />
-                            </a>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {leadsData?.usedFallback && (
-                    <div className="bg-amber-50 border border-amber-200 p-3.5 rounded-xl flex items-start gap-2.5 text-xs text-amber-900">
-                      <ShieldAlert className="w-3.5 h-3.5 text-amber-700 mt-0.5 shrink-0" />
-                      <div>
-                        <strong>{lang === 'fi' ? 'Verkkoyhteyskuormitus optimoitu.' : 'Quota optimization sequence activated.'}</strong>
-                        <p className="mt-0.5 opacity-90">{lang === 'fi' ? 'Käytettiin korkean tarkkuuden tekoälysimulaatiomallejamme.' : 'Direct local semantic grounding database initialized safely.'}</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* EMPTY CORNER STATE */}
-              {editableLeads.length === 0 && !isLoadingLeads && (
-                <div className="bg-white border border-[#E0E4DC] rounded-2xl p-16 text-center text-[#5C6F63]">
-                  <Cpu className="w-12 h-12 opacity-35 mx-auto mb-3 text-[#1B4332] animate-pulse" />
-                  <h4 className="font-serif text-lg font-bold text-[#1A1A1A]">
-                    {lang === 'fi' ? 'Ei skannauksia käynnissä juuri nyt' : 'Prospector is on Standby'}
-                  </h4>
-                  <p className="text-xs text-gray-500 mt-1.5 max-w-sm mx-auto leading-relaxed">
-                    {lang === 'fi' 
-                      ? 'Napsauta skannauspainiketta ylhäältä syöttääksesi suodattimet ja Gemini käynnistää reaaliaikaisen verkkohakubotin.' 
-                      : 'Define target categories and click "Execute Grounded Live Crawl" to let Gemini map prospect coordinates.'
-                    }
-                  </p>
-                </div>
-              )}
-
-            </div>
-          )}
-
-          {/* TAB 5: PROFILE SETTINGS PANEL */}
-          {activeTab === 'profile' && (
-            <div className="space-y-8">
-              <div className="bg-white border border-[#E0E4DC] rounded-xl p-6 shadow-sm">
-                <div>
-                  <h3 className="font-serif text-lg font-bold text-[#1A1A1A]">
-                    {lang === 'fi' ? 'Profiili ja ylläpitoasetukset' : 'Profile & Administrative Settings'}
-                  </h3>
-                  <p className="text-xs text-[#5C6F63] mt-1">
-                    {lang === 'fi'
-                      ? 'Hallitse omia yhteystietojasi, rooliasi ja yritysprofiilia, jotka näkyvät myös ylläpitoportaalissa.'
-                      : 'Manage your contact information, credentials, and organizational preferences displayed across ERP screens.'}
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-8">
-                  {/* Left avatar & card overview (4 cols) */}
-                  <div className="lg:col-span-4 bg-[#F9FBF9] border border-[#D5E4DB] rounded-2xl p-6 flex flex-col items-center justify-between text-center relative overflow-hidden">
-                    <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-[#1B4332] to-[#95C4A1]" />
-                    <div className="w-full flex flex-col items-center py-6">
-                      {/* Avatar preview area */}
-                      <div className="relative group">
-                        <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white shadow-md relative bg-gray-100 flex items-center justify-center">
-                          {profile.avatarUrl ? (
-                            <img src={profile.avatarUrl} alt={profile.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                          ) : (
-                            <User className="w-12 h-12 text-[#95C4A1]" />
+                          {bookings.length === 0 && (
+                            <div className="bg-[#FAFBF9] border border-[#E0E4DC] p-8 rounded-2xl text-center text-gray-400 col-span-2">
+                              {lang === 'fi' ? 'Ei saapuvia nettipyyntöjä tallennettuna.' : 'Zero online quote submissions found.'}
+                            </div>
                           )}
                         </div>
                       </div>
 
-                      <h4 className="font-serif text-xl font-bold text-[#1A1A1A] mt-4 leading-normal">{profile.name}</h4>
-                      <p className="text-xs font-semibold text-[#1B4332] bg-[#95C4A1]/20 px-3 py-1 rounded-md mt-1.5 inline-block">{profile.role}</p>
+                      {/* Eco Detergents & Supply Checklist Tracker */}
+                      <div className="space-y-4 pt-4 border-t border-gray-100">
+                        <div className="flex items-center gap-2">
+                          <Package className="w-5 h-5 text-[#1B4332]" />
+                          <h4 className="font-serif text-base font-bold text-gray-900">
+                            {lang === 'fi' ? 'Ekologinen työkalu- & ainevarasto (Supply Inventory)' : 'Biodegradable Chemicals & Gear Stock (Inventory)'}
+                          </h4>
+                        </div>
 
-                      <div className="w-full space-y-2 mt-6 text-left text-xs text-[#4A4A4A] border-t border-[#E5E9E2] pt-5 font-semibold">
-                        <p className="flex justify-between">
-                          <span className="text-gray-400 font-medium">{lang === 'fi' ? 'Yritys' : 'Company'}:</span>
-                          <span>{profile.companyName}</span>
-                        </p>
-                        <p className="flex justify-between">
-                          <span className="text-gray-400 font-medium">{lang === 'fi' ? 'Sähköposti' : 'Email'}:</span>
-                          <span>{profile.email}</span>
-                        </p>
-                        <p className="flex justify-between font-mono">
-                          <span className="text-gray-400 font-medium font-sans">{lang === 'fi' ? 'Puhelin' : 'Phone'}:</span>
-                          <span>{profile.phone}</span>
-                        </p>
-                        <p className="flex justify-between">
-                          <span className="text-gray-400 font-medium">{lang === 'fi' ? 'Turvaluokka' : 'Access clearance'}:</span>
-                          <span className="text-emerald-800 font-bold">ROOT ADMIN</span>
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right Profile Edit Form (8 cols) */}
-                  <form 
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      localStorage.setItem('adm_profile', JSON.stringify(profile));
-                      setProfileSuccessMsg(lang === 'fi' ? 'Profiili päivitetty onnistuneesti!' : 'Profile updated successfully!');
-                      setTimeout(() => setProfileSuccessMsg(null), 3000);
-                    }}
-                    className="lg:col-span-8 space-y-6"
-                  >
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs font-bold font-sans">
-                      {/* Full Name input */}
-                      <div className="space-y-1.5">
-                        <label className="text-[#4A4A4A] uppercase tracking-wider">{lang === 'fi' ? 'Ylläpitäjän nimi *' : 'Administrator Full Name *'}</label>
-                        <input
-                          type="text"
-                          required
-                          value={profile.name}
-                          onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-                          className="w-full border border-[#E0E4DC] bg-white rounded-lg px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:border-[#1B4332]"
-                          placeholder="e.g. Kennedy Nam"
-                        />
-                      </div>
-
-                      {/* Role input */}
-                      <div className="space-y-1.5">
-                        <label className="text-[#4A4A4A] uppercase tracking-wider">{lang === 'fi' ? 'Tehtävänimike / Rooli *' : 'Role / Professional Title *'}</label>
-                        <input
-                          type="text"
-                          required
-                          value={profile.role}
-                          onChange={(e) => setProfile({ ...profile, role: e.target.value })}
-                          className="w-full border border-[#E0E4DC] bg-white rounded-lg px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:border-[#1B4332]"
-                          placeholder="e.g. Operations Director"
-                        />
-                      </div>
-
-                      {/* Email input */}
-                      <div className="space-y-1.5">
-                        <label className="text-[#4A4A4A] uppercase tracking-wider">{lang === 'fi' ? 'Sähköpostiosoite *' : 'Email Address *'}</label>
-                        <input
-                          type="email"
-                          required
-                          value={profile.email}
-                          onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                          className="w-full border border-[#E0E4DC] bg-white rounded-lg px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:border-[#1B4332]"
-                          placeholder="e.g. kennedy.nam@gmail.com"
-                        />
+                        <div className="bg-[#FAFBF9] border border-[#E0E4DC] rounded-2xl overflow-hidden shadow-sm">
+                          <table className="w-full text-left text-xs font-sans">
+                            <thead className="bg-[#1C3A2E]/5 border-b border-[#E0E4DC] uppercase tracking-wider text-[10px] font-bold text-[#5C6F63]">
+                              <tr>
+                                <th className="px-4 py-3">{lang === 'fi' ? 'Artikkeli' : 'Supply Name'}</th>
+                                <th className="px-4 py-3 text-center">{lang === 'fi' ? 'Määrä' : 'Stock level'}</th>
+                                <th className="px-4 py-3 text-center">{lang === 'fi' ? 'Varoitusraja' : 'Minimum metric'}</th>
+                                <th className="px-4 py-3 text-center">{lang === 'fi' ? 'Tila' : 'Status Alert'}</th>
+                                <th className="px-4 py-3 text-right">{lang === 'fi' ? 'Hienosäätö' : 'Update quantity'}</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-[#E0E4DC] text-gray-700 font-semibold">
+                              {inventory.map((item) => {
+                                const isLow = item.quantity <= item.minAlertThreshold;
+                                return (
+                                  <tr key={item.id} className="hover:bg-gray-50/50">
+                                    <td className="px-4 py-3.5">
+                                      <div className="font-bold text-gray-950">{lang === 'fi' ? item.nameFi : item.nameEn}</div>
+                                      <span className="text-[9px] text-gray-400 font-mono">ID: {item.id}</span>
+                                    </td>
+                                    <td className="px-4 text-center font-mono font-bold text-[13px]">{item.quantity} {item.unit}</td>
+                                    <td className="px-4 text-center font-mono text-gray-400">{item.minAlertThreshold} {item.unit}</td>
+                                    <td className="px-4 text-center">
+                                      <span className={`px-2.5 py-1 rounded-full text-[9px] font-bold ${
+                                        isLow 
+                                          ? 'bg-rose-100 text-rose-800 border border-rose-200' 
+                                          : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                      }`}>
+                                        {isLow ? (lang === 'fi' ? '⚠️ ALHAINEN VARASTO' : '⚠️ LOW STOCK') : (lang === 'fi' ? 'RIITTÄVÄ' : 'OK')}
+                                      </span>
+                                    </td>
+                                    <td className="px-4 text-right">
+                                      <div className="inline-flex gap-1">
+                                        <button 
+                                          onClick={() => updateStock(item.id, -1)}
+                                          className="w-7 h-7 bg-white hover:bg-gray-100 border border-[#E0E4DC] text-gray-800 font-bold rounded-lg flex items-center justify-center cursor-pointer select-none"
+                                        >-</button>
+                                        <button 
+                                          onClick={() => updateStock(item.id, 1)}
+                                          className="w-7 h-7 bg-[#1B4332] hover:bg-[#20513d] text-white font-bold rounded-lg flex items-center justify-center cursor-pointer select-none"
+                                        >+</button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
 
-                      {/* Phone input */}
-                      <div className="space-y-1.5">
-                        <label className="text-[#4A4A4A] uppercase tracking-wider">{lang === 'fi' ? 'Puhelinnumero' : 'Phone Number'}</label>
-                        <input
-                          type="text"
-                          value={profile.phone}
-                          onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-                          className="w-full border border-[#E0E4DC] bg-white rounded-lg px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:border-[#1B4332] font-mono"
-                          placeholder="e.g. +358 40 123 4567"
-                        />
+                      {/* Standard Operating Procedures (SOP) Section */}
+                      <div className="space-y-4 pt-4 border-t border-gray-100">
+                        <div className="flex items-center gap-2">
+                          <BookOpen className="w-5 h-5 text-[#1B4332]" />
+                          <h4 className="font-serif text-base font-bold text-gray-900">
+                            {lang === 'fi' ? 'Standarditoimintamenetelmät (SOP Guidelines)' : 'Corporate Standard Operating Procedures (SOP)'}
+                          </h4>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="bg-white border border-[#E0E4DC] p-4 rounded-xl space-y-2">
+                            <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-widest bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100 inline-block">
+                              SOP 01: TAPIOLA DENTAL HYGIENE
+                            </span>
+                            <h5 className="font-serif text-sm font-bold text-gray-950">
+                              {lang === 'fi' ? 'Hammasklinikan steriili ekosiivous' : 'Dental Treatment Clinic Sanitation Plan'}
+                            </h5>
+                            <p className="text-[11px] text-gray-600 leading-relaxed">
+                              {lang === 'fi'
+                                ? 'Hoitohuoneissa vaaditaan ehdoton kirurginen kosketuspuhtaus. Pyyhi hoitotuolit, hammaslääkärivalot ja tasot desinfiointiaineella kahdesti. Älä koskaan käytä samoja liinoja odotustilojen puhdistukseen.'
+                                : 'Strict biological sterilization protocol. Every dental armchair and operating headlamp is wiped with eco-friendly sanitizers twice. Separate microfiber rags must be used exclusively in sterilized rooms.'
+                              }
+                            </p>
+                          </div>
+
+                          <div className="bg-white border border-[#E0E4DC] p-4 rounded-xl space-y-2">
+                            <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-widest bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100 inline-block">
+                              SOP 02: KEILANIEMI IT SECURITY
+                            </span>
+                            <h5 className="font-serif text-sm font-bold text-gray-950">
+                              {lang === 'fi' ? 'Teknologiayritysten staattinen pölynsidonta' : 'Technology Center High-Value ESD Protocol'}
+                            </h5>
+                            <p className="text-[11px] text-gray-600 leading-relaxed">
+                              {lang === 'fi'
+                                ? 'Palvelin- ja sähkötilojen läheisyydessä on käytettävä ainoastaan ESD-luokiteltuja (sähköstaattisesti turvallisia) imureita sekä sitruunapohjaista kemikaalipyyhintää ilmankosteuden säilyttämiseksi.'
+                                : 'Electrostatic protection protocol in server environments. Cleaners must only use anti-static certified microfiber dusters and keep strict clearance from server cabling and structural racks.'
+                              }
+                            </p>
+                          </div>
+                        </div>
                       </div>
 
-                      {/* Company Name input */}
-                      <div className="space-y-1.5">
-                        <label className="text-[#4A4A4A] uppercase tracking-wider">{lang === 'fi' ? 'Yrityksen nimi *' : 'Company Name *'}</label>
-                        <input
-                          type="text"
-                          required
-                          value={profile.companyName}
-                          onChange={(e) => setProfile({ ...profile, companyName: e.target.value })}
-                          className="w-full border border-[#E0E4DC] bg-white rounded-lg px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:border-[#1B4332]"
-                          placeholder="e.g. Puhdas Tila Oy"
-                        />
-                      </div>
+                      {/* Operational Documents & MSDS Sheets Section */}
+                      <div className="space-y-4 pt-4 border-t border-gray-155">
+                        <div className="flex justify-between items-center flex-wrap gap-2 text-left">
+                          <div className="flex items-center gap-2">
+                            <ClipboardList className="w-5 h-5 text-[#1B4332]" />
+                            <h4 className="font-serif text-base font-bold text-gray-900">
+                              {lang === 'fi' ? 'Käyttöturvallisuustiedotteet & Operatiiviset ohjeet' : 'Eco MSDS Data Sheets & Operational Guidelines'}
+                            </h4>
+                          </div>
 
-                      {/* Avatar preview URL input */}
-                      <div className="space-y-1.5">
-                        <label className="text-[#4A4A4A] uppercase tracking-wider">{lang === 'fi' ? 'Profiilikuvan kuva-URL (vaihtoehtoinen)' : 'Profile Image URL'}</label>
-                        <input
-                          type="text"
-                          value={profile.avatarUrl}
-                          onChange={(e) => setProfile({ ...profile, avatarUrl: e.target.value })}
-                          className="w-full border border-[#E0E4DC] bg-white rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#1B4332] font-mono font-medium"
-                          placeholder="e.g. https://images.unsplash.com/... or base64"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Pre-set avatars selector */}
-                    <div className="space-y-2 pt-2 text-xs font-bold text-[#4A4A4A]">
-                      <span className="block uppercase tracking-wider">{lang === 'fi' ? 'Pikavalinta profiilikuvalle:' : 'Or Select Profile Avatar Preset:'}</span>
-                      <div className="flex flex-wrap gap-4 items-center">
-                        {[
-                          { name: 'Admin Man', url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80' },
-                          { name: 'Admin Woman', url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80' },
-                          { name: 'Eco Team Lead', url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80' },
-                          { name: 'Technician', url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80' }
-                        ].map((av, avi) => {
-                          const isSelected = profile.avatarUrl === av.url;
-                          return (
-                            <button
-                              key={avi}
-                              type="button"
-                              onClick={() => setProfile({ ...profile, avatarUrl: av.url })}
-                              className={`p-1 rounded-full border-2 transition-all cursor-pointer ${
-                                isSelected ? 'border-[#1B4332] scale-115' : 'border-transparent hover:border-gray-200'
-                              }`}
-                              title={av.name}
+                          {/* Instant upload selector combo */}
+                          <div className="flex items-center gap-2 flex-wrap text-left">
+                            <select 
+                              id="ops-file-category"
+                              defaultValue="MSDS (Chem safety)"
+                              className="border border-[#E0E4DC] rounded-lg px-2 py-1 bg-white focus:outline-[#1B4332] text-[10px] font-bold"
                             >
-                              <img src={av.url} alt={av.name} className="w-10 h-10 rounded-full object-cover" referrerPolicy="no-referrer" />
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
+                              <option value="MSDS (Chem safety)">{lang === 'fi' ? 'Käyttöturvallisuustiedote (MSDS)' : 'Chem Safety (MSDS)'}</option>
+                              <option value="SOP Instruction">{lang === 'fi' ? 'Toimintaohje (SOP Guide)' : 'SOP Guide'}</option>
+                              <option value="Compliance Certificate">{lang === 'fi' ? 'Sertifikaatti (Certificate)' : 'Certificate'}</option>
+                            </select>
+                            
+                            <label 
+                              htmlFor="ops-file-picker" 
+                              className="bg-[#1B4332] hover:bg-[#20513d] text-white px-3 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer inline-flex items-center gap-1 transition-all select-none"
+                            >
+                              <Upload className="w-3.5 h-3.5" />
+                              {lang === 'fi' ? 'Lataa tiedosto' : 'Upload File'}
+                            </label>
+                            <input 
+                              id="ops-file-picker"
+                              type="file"
+                              accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.txt"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                const category = (document.getElementById('ops-file-category') as HTMLSelectElement)?.value || 'MSDS (Chem safety)';
+                                if (file) handleOpsFileUpload(category, file);
+                              }}
+                            />
+                          </div>
+                        </div>
 
-                    {/* Submit saves and triggers local success feedback banner */}
-                    <div className="pt-4 border-t border-gray-100 flex items-center justify-between">
+                        {/* List of files in a beautiful layout */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {operationalFiles.map((f) => {
+                            const isMsds = f.category.toLowerCase().includes('msds') || f.category.toLowerCase().includes('kemikaali');
+                            return (
+                              <div key={f.id} className="bg-white border border-[#E0E4DC] rounded-xl p-4 flex items-center justify-between gap-4 hover:border-[#CBDCCF] transition-all shadow-sm">
+                                <div className="flex items-start gap-3 min-w-0">
+                                  <div className="p-2 bg-emerald-50 rounded-xl border border-emerald-100/50 text-[#1B4332] shrink-0">
+                                    <FileText className="w-5 h-5" />
+                                  </div>
+                                  <div className="min-w-0 text-left">
+                                    <h5 className="font-bold text-gray-950 text-xs truncate" title={f.name}>{f.name}</h5>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                                        isMsds ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
+                                      }`}>
+                                        {f.category}
+                                      </span>
+                                      <span className="text-[9px] font-mono text-gray-400">{f.size} • {f.date}</span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <a 
+                                    href={f.content} 
+                                    download={f.name}
+                                    className="p-1 px-2.5 bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-250 text-[#1B4332] text-[10px] font-bold rounded-lg flex items-center gap-1 transition-all inline-block select-none"
+                                    title={lang === 'fi' ? 'Lataa tiedosto' : 'Download document'}
+                                  >
+                                    <Download className="w-3 h-3 inline" />
+                                    <span>{lang === 'fi' ? 'Lataa' : 'Get'}</span>
+                                  </a>
+                                  <button
+                                    onClick={() => handleDeleteOpsFile(f.id)}
+                                    className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all cursor-pointer"
+                                    title={lang === 'fi' ? 'Poista asiakirja' : 'Delete file'}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+
+                          {operationalFiles.length === 0 && (
+                            <div className="md:col-span-2 border border-dashed border-gray-200 rounded-xl p-8 text-center text-gray-400">
+                              <p className="text-xs font-semibold">{lang === 'fi' ? 'Ei ladattuja ohjekirjoja tai tiedotteita.' : 'No operational manual files uploaded remaining.'}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                    </div>
+                  )}
+
+                  {/* TAB 5: ADMIN PROFILE PASSWORD CHANGE */}
+                  {activeTab === 'profile' && (
+                    <div className="space-y-6 text-left">
+                      
+                      {/* Section Title */}
                       <div>
-                        {profileSuccessMsg && (
-                          <span className="text-xs text-emerald-800 font-extrabold bg-emerald-100/70 border border-emerald-500/20 px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5">
-                            <Check className="w-4 h-4 text-emerald-700" />
-                            {profileSuccessMsg}
-                          </span>
-                        )}
+                        <h3 className="font-serif text-lg font-bold text-gray-900 border-b border-gray-100 pb-2">
+                          {lang === 'fi' ? 'Ylläpitäjän Profiili & Järjestelmäasetukset' : 'Operations Director Profile'}
+                        </h3>
+                        <p className="text-[#5C6F63] text-xs mt-1">
+                          {lang === 'fi' 
+                            ? 'Päivitä yrityksen bränditiedot tai omat yhteystietosi.'
+                            : 'Update director information and modify organization configurations.'
+                          }
+                        </p>
                       </div>
 
-                      <button
-                        type="submit"
-                        className="bg-[#1B4332] hover:bg-[#20513d] text-white px-6 py-3 rounded-xl text-xs uppercase tracking-wider font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <ShieldCheck className="w-4.5 h-4.5 text-[#95C4A1]" />
-                        <span>{lang === 'fi' ? 'Tallenna asetukset' : 'Save Settings'}</span>
-                      </button>
-                    </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        
+                        {/* Summary details card */}
+                        <div className="bg-[#FAFBF9] border border-[#E0E4DC] rounded-xl p-5 shadow-sm text-center flex flex-col items-center justify-center">
+                          <div className="relative group mb-3">
+                            {profile.avatarUrl ? (
+                              <img 
+                                src={profile.avatarUrl} 
+                                alt={profile.name} 
+                                className="w-20 h-20 rounded-full object-cover border-2 border-[#1B4332] shadow-md"
+                                referrerPolicy="no-referrer"
+                              />
+                            ) : (
+                              <div className="w-20 h-20 rounded-full bg-emerald-50 text-emerald-800 flex items-center justify-center font-bold font-serif text-xl border border-[#CBDCCF] shadow-md">
+                                {profile.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                              </div>
+                            )}
+                            
+                            {/* Photo capture uploader widget label */}
+                            <label 
+                              htmlFor="admin-avatar-picker"
+                              className="absolute bottom-0 right-0 p-1.5 bg-[#1B4332] hover:bg-[#20513d] text-white rounded-full border-2 border-white cursor-pointer hover:scale-105 transition-all shadow-md flex items-center justify-center"
+                              title={lang === 'fi' ? 'Lataa profiilikuva' : 'Upload profile image'}
+                            >
+                              <Upload className="w-3.5 h-3.5" />
+                            </label>
+                            <input 
+                              id="admin-avatar-picker"
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleAdminAvatarUpload(file);
+                              }}
+                            />
+                          </div>
 
-                  </form>
-                </div>
-              </div>
-            </div>
-          )}
+                          <h4 className="font-serif text-base font-bold text-gray-900">{profile.name}</h4>
+                          <p className="text-[11px] text-[#1B4332] font-bold uppercase tracking-wider bg-emerald-50 px-3 py-1 rounded-full border border-emerald-250 mt-1">
+                            {profile.role}
+                          </p>
+                          <p className="text-[11px] text-[#5C6F63] mt-2 font-semibold">
+                            {profile.companyName} • {profile.email}
+                          </p>
+                        </div>
+
+                        {/* Editable form panel */}
+                        <div className="md:col-span-2 bg-white border border-[#E0E4DC] p-5 rounded-2xl shadow-sm">
+                          <form onSubmit={handleUpdateProfile} className="space-y-4 text-xs font-semibold">
+                            
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <div className="space-y-1.5">
+                                <label className="text-gray-500 uppercase tracking-wider block text-[10px]">{lang === 'fi' ? 'Nimi (Director name)' : 'Your Name'}</label>
+                                <input
+                                  type="text"
+                                  className="w-full border border-[#E0E4DC] bg-white rounded-lg px-3 py-2 text-xs focus:outline-[#1B4332]"
+                                  value={profile.name}
+                                  onChange={(e) => setProfile(prev => ({ ...prev, name: e.target.value }))}
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="text-gray-500 uppercase tracking-wider block text-[10px]">{lang === 'fi' ? 'Sähköposti (Mailbox)' : 'Email'}</label>
+                                <input
+                                  type="email"
+                                  className="w-full border border-[#E0E4DC] bg-white rounded-lg px-3 py-2 text-xs focus:outline-[#1B4332]"
+                                  value={profile.email}
+                                  onChange={(e) => setProfile(prev => ({ ...prev, email: e.target.value }))}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <div className="space-y-1.5">
+                                <label className="text-gray-500 uppercase tracking-wider block text-[10px]">{lang === 'fi' ? 'Puhelinnumero' : 'Direct Phone'}</label>
+                                <input
+                                  type="text"
+                                  className="w-full border border-[#E0E4DC] bg-white rounded-lg px-3 py-2 text-xs focus:outline-[#1B4332]"
+                                  value={profile.phone}
+                                  onChange={(e) => setProfile(prev => ({ ...prev, phone: e.target.value }))}
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="text-gray-500 uppercase tracking-wider block text-[10px]">{lang === 'fi' ? 'Yrityksen virallinen nimi' : 'Legal Company Name'}</label>
+                                <input
+                                  type="text"
+                                  className="w-full border border-[#E0E4DC] bg-white rounded-lg px-3 py-2 text-xs focus:outline-[#1B4332]"
+                                  value={profile.companyName}
+                                  onChange={(e) => setProfile(prev => ({ ...prev, companyName: e.target.value }))}
+                                />
+                              </div>
+                            </div>
+
+                            {profileSuccessMsg && (
+                              <div className="bg-emerald-50 border border-emerald-100 text-[#1B4332] p-2.5 rounded-lg text-xs font-serif font-bold">
+                                ✓ {profileSuccessMsg}
+                              </div>
+                            )}
+
+                            <button
+                              type="submit"
+                              className="bg-[#1B4332] hover:bg-[#20513d] text-white px-4 py-2 rounded-lg font-bold cursor-pointer transition-all text-center inline-block"
+                            >
+                              {lang === 'fi' ? 'Tallenna profiilin muutokset' : 'Save profile changes'}
+                            </button>
+
+                          </form>
+                        </div>
+
+                      </div>
+
+                    </div>
+                  )}
+
+                </motion.div>
+              </AnimatePresence>
+
+            </main>
+
+          </div>
 
         </div>
-      </main>
-
-      {/* Sub-bar Copyright Footer */}
-      <footer className="bg-[#0D2B1E] border-t border-white/5 py-4 px-6 flex justify-between items-center text-[10px] text-white/45 shrink-0 z-10 font-mono">
-        <p>© 2026 Puhdas Tila B2B Control Panel Workspace v3.1</p>
-        <p>SECURE HTTPS RUNNING ON CONTAINER PORT 3000</p>
-      </footer>
+      )}
+      
     </div>
   );
 }

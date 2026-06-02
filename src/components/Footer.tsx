@@ -253,20 +253,34 @@ export default function Footer({ lang, logoStyle, onOpenAdmin }: FooterProps) {
 
         {/* Separator row footer bottom */}
         <div className="border-t border-white/10 pt-8 flex flex-col sm:flex-row gap-4 justify-between items-center text-xs text-white/45">
-          <p>{t.footerCopyright}</p>
+          <p 
+            onDoubleClick={onOpenAdmin}
+            onClick={() => {
+              const now = Date.now();
+              const lastTap = (window as any)._lastFooterTap || 0;
+              const tapCount = (window as any)._footerTapCount || 0;
+              if (now - lastTap < 600) {
+                const newCount = tapCount + 1;
+                (window as any)._footerTapCount = newCount;
+                if (newCount >= 4) { // 5 taps total
+                  onOpenAdmin?.();
+                  (window as any)._footerTapCount = 0;
+                }
+              } else {
+                (window as any)._footerTapCount = 1;
+              }
+              (window as any)._lastFooterTap = now;
+            }}
+            className="cursor-default select-none transition-colors active:text-white/60"
+            title="Copyright info"
+          >
+            {t.footerCopyright}
+          </p>
           <div className="flex flex-wrap items-center gap-4">
             <p className="flex items-center gap-1.5 font-medium">
               <span>{t.footerUkkoNote}</span>
             </p>
-            {onOpenAdmin && (
-              <button 
-                onClick={onOpenAdmin}
-                className="hover:text-white hover:underline cursor-pointer font-bold border border-white/10 px-3 py-1 bg-white/[0.03] rounded transition-colors flex items-center gap-1"
-                aria-label="Avaa ylläpitoportaali"
-              >
-                🔒 {lang === 'fi' ? 'Ylläpitoportaali' : 'Admin Portal'}
-              </button>
-            )}
+            {/* Admin entry button is removed to prevent guessing or unauthorized access */}
           </div>
         </div>
       </div>

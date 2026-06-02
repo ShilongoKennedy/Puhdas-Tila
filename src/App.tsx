@@ -28,11 +28,25 @@ export default function App() {
   // Initialize modular hook to reveal segments when they scroll into the observer threshold
   useIntersectionObserver('.reveal', 0.1);
 
-  // Auto detect if URL contains admin trigger
+  // Auto detect if URL contains admin trigger with safe secret backdoors
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('admin') === 'true' || params.get('admin') === '1') {
+    const hasAdminQuery = 
+      params.get('admin') === 'true' || 
+      params.get('admin') === '1' ||
+      params.get('hallinta') === 'kylla' ||
+      params.get('operator') === 'secure' ||
+      params.get('access') === 'puhdastila';
+
+    if (hasAdminQuery) {
       setIsAdminOpen(true);
+      // Clean up the URL query parameters from browser history so normal visitors don't see them if the admin shares a screenshot/screen
+      try {
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, newUrl);
+      } catch (e) {
+        // Fallback if browser security sandbox prevents replaceState in iframe preview
+      }
     }
   }, []);
 

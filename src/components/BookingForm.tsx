@@ -79,11 +79,36 @@ export default function BookingForm({ lang, prefilledService = '', prefilledSize
     return Object.keys(newErrors).length === 0;
   };
 
+  const saveBookingLocally = (data: BookingFormData) => {
+    try {
+      const existing = localStorage.getItem('adm_client_bookings');
+      const list = existing ? JSON.parse(existing) : [];
+      const newBooking = {
+        id: 'bk-' + Math.random().toString(36).substring(2, 11),
+        companyName: data.companyName,
+        contactName: data.contactName,
+        email: data.email,
+        phone: data.phone,
+        serviceType: data.serviceType,
+        officeSize: data.officeSize,
+        startDate: data.startDate || new Date().toISOString().split('T')[0],
+        hasSupplies: data.hasSupplies || 'dont_know',
+        notes: data.notes || '',
+        status: 'Received', // Received, Contacted, Converted
+        createdAt: new Date().toISOString().split('T')[0]
+      };
+      localStorage.setItem('adm_client_bookings', JSON.stringify([newBooking, ...list]));
+    } catch (e) {
+      console.error('Error writing booking to localStorage:', e);
+    }
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
 
     setIsSubmitting(true);
+    saveBookingLocally(formData);
     
     const accessKey = import.meta.env.VITE_WEB3FORMS_ACCESS_KEY;
     

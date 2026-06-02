@@ -169,18 +169,7 @@ export default function Navbar({ lang, setLang, logoStyle, onOpenAdmin }: Navbar
 
           {/* Nav Right Action & Selector Button Area */}
           <div className="hidden md:flex items-center gap-4">
-            {onOpenAdmin && (
-              <button
-                onClick={onOpenAdmin}
-                className={`p-2 rounded-full cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-all focus:outline-none ${
-                  isScrolled ? 'text-[#1B4332]' : 'text-white'
-                }`}
-                title={lang === 'fi' ? 'Ylläpitoportaali' : 'Admin Portal'}
-                aria-label="Avaa ylläpitoportaali"
-              >
-                <Lock className="w-4 h-4" />
-              </button>
-            )}
+            {/* Admin entry is removed to prevent guessing or unauthorized access */}
             {/* Elegant Pill Language Switcher */}
             <div className="flex items-center bg-black/10 dark:bg-white/10 p-0.5 rounded-full border border-current/15 gap-0.5">
               <button
@@ -284,18 +273,7 @@ export default function Navbar({ lang, setLang, logoStyle, onOpenAdmin }: Navbar
             >
               {t.navContact}
             </button>
-            {onOpenAdmin && (
-              <button
-                onClick={() => {
-                  setIsMobileMenuOpen(false);
-                  onOpenAdmin();
-                }}
-                className="text-left py-2 text-base font-bold px-2 rounded-md hover:bg-[#F2F4F0] text-[#1B4332] focus:outline-none flex items-center gap-2 cursor-pointer"
-              >
-                <Lock className="w-4 h-4" />
-                <span>{lang === 'fi' ? 'Ylläpitoportaali' : 'Admin Portal'}</span>
-              </button>
-            )}
+            {/* Mobile menu admin link is removed for security purposes */}
             <button
               onClick={() => handleLinkClick('varaus')}
               className="w-full text-center py-3 bg-[#1B4332] text-white font-bold rounded-full hover:bg-[#2D6A4F] transition-colors focus:outline-none cursor-pointer"
