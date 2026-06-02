@@ -20,6 +20,7 @@ export default function Pricing({ lang, onPrefillQuote }: PricingProps) {
   const [minPrice, setMinPrice] = useState<number>(0);
   const [maxPrice, setMaxPrice] = useState<number>(0);
   const [estHours, setEstHours] = useState<number>(0);
+  const [isDiscountApplied, setIsDiscountApplied] = useState<boolean>(true);
 
   // Dynamic formula to approximate office cleaning pricing in Helsinki region
   useEffect(() => {
@@ -268,6 +269,39 @@ export default function Pricing({ lang, onPrefillQuote }: PricingProps) {
                   })}
                 </div>
               </div>
+
+              {/* Promo Discount Toggle Segment */}
+              <div className="mt-8 pt-6 border-t border-[#E0E4DC]">
+                <div 
+                  onClick={() => setIsDiscountApplied(!isDiscountApplied)}
+                  className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-all ${
+                    isDiscountApplied 
+                      ? 'bg-emerald-50/70 border-emerald-200/80 shadow-xs' 
+                      : 'bg-[#FAFAF7] border-[#E0E4DC] hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">🎉</span>
+                    <div className="text-left">
+                      <p className={`text-xs font-bold leading-tight ${isDiscountApplied ? 'text-emerald-950' : 'text-[#1A1A1A]'}`}>
+                        {t.calcDiscountToggle}
+                      </p>
+                      <p className="text-[10px] text-[#7A7A7A] mt-1 leading-normal max-w-sm">
+                        {lang === 'fi' 
+                          ? 'Säästät 15% ensimmäisen kuukauden tai kertatilauksen hinnoista!' 
+                          : 'Save 15% on your first month or one-time cleaning session!'}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Switch toggle control style */}
+                  <div className="relative shrink-0 ml-2">
+                    <div className={`w-10 h-6 rounded-full transition-colors duration-200 ${isDiscountApplied ? 'bg-[#1B4332]' : 'bg-gray-200'}`} />
+                    <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full shadow-xs transition-transform duration-200 ${isDiscountApplied ? 'translate-x-4' : ''}`} />
+                  </div>
+                </div>
+              </div>
+
             </div>
 
             {/* Right Box (Visual feedback & dynamic estimates) */}
@@ -322,14 +356,39 @@ export default function Pricing({ lang, onPrefillQuote }: PricingProps) {
                   {t.calcEstimateLabel}
                 </p>
 
-                <div className="flex items-baseline gap-2 mb-2">
-                  <span className="font-serif text-3xl sm:text-4xl font-extrabold text-[#B7E4C7]">
-                    {frequency === 'onetime' ? `${minPrice} €` : `${minPrice} - ${maxPrice} €`}
-                  </span>
-                  <span className="text-[#95C4A1] text-xs sm:text-sm font-semibold select-none">
-                    {frequency === 'onetime' ? t.calcEstimateUnitHour : t.calcEstimateUnit}
-                  </span>
-                </div>
+                {isDiscountApplied ? (
+                  <div className="space-y-1 mb-4">
+                    {/* Struck-through original price */}
+                    <p className="text-white/40 text-xs line-through font-semibold">
+                      {frequency === 'onetime' ? `${minPrice} €` : `${minPrice} - ${maxPrice} €`}
+                    </p>
+                    {/* Big beautiful discounted price */}
+                    <div className="flex items-baseline gap-2">
+                      <span className="font-serif text-3xl sm:text-4xl font-extrabold text-[#F4E185] drop-shadow-sm">
+                        {frequency === 'onetime' 
+                          ? `${Math.round(minPrice * 0.85)} €` 
+                          : `${Math.round(minPrice * 0.85)} - ${Math.round(maxPrice * 0.85)} €`
+                        }
+                      </span>
+                      <span className="text-[#95C4A1] text-xs sm:text-sm font-semibold select-none">
+                        {frequency === 'onetime' ? t.calcEstimateUnitHour : t.calcEstimateUnit}
+                      </span>
+                    </div>
+                    {/* Custom active badge */}
+                    <span className="inline-block bg-[#F4E185]/20 text-[#F4E185] border border-[#F4E185]/30 text-[10px] font-black tracking-widest uppercase px-2 py-0.5 rounded-sm mt-1">
+                      ✦ {t.calcDiscountApplied}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-baseline gap-2 mb-2">
+                    <span className="font-serif text-3xl sm:text-4xl font-extrabold text-[#B7E4C7]">
+                      {frequency === 'onetime' ? `${minPrice} €` : `${minPrice} - ${maxPrice} €`}
+                    </span>
+                    <span className="text-[#95C4A1] text-xs sm:text-sm font-semibold select-none">
+                      {frequency === 'onetime' ? t.calcEstimateUnitHour : t.calcEstimateUnit}
+                    </span>
+                  </div>
+                )}
 
                 {/* Simulated estimate parameters info block */}
                 <span className="text-white/50 text-[11px] block leading-normal mb-6 pb-6 border-b border-white/10">

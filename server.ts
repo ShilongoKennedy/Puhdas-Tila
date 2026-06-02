@@ -119,7 +119,7 @@ Tämä sähköposti on lähetetty automaattisesti puhdas-tila.com -verkkosivusto
         adminEmails.unshift(process.env.ADMIN_EMAIL);
       }
 
-      // Collect all potential recipients
+      // Collect all potential recipients de-duplicated
       const uniqueRecipients = Array.from(new Set([
         ...adminEmails,
         email
@@ -127,98 +127,119 @@ Tämä sähköposti on lähetetty automaattisesti puhdas-tila.com -verkkosivusto
 
       let successfulDeliveries = 0;
       let lastError: any = null;
-      let sentIds: string[] = [];
+      const sentIds: string[] = [];
       const deliveryDetails: string[] = [];
+      const failures: any[] = [];
 
-      // List of candidate sender identities, ordered by probability of success/preference
-      const fromCandidates = [
-        finalFrom, // e.g. custom FROM_EMAIL if defined, or onboarding@resend.dev
-        "Puhdas Tila Verkkosivut <onboarding@resend.dev>",
-        "Puhdas Tila <info@puhdas-tila.com>",
-        "Puhdas Tila <asiakaspalvelu@puhdas-tila.com>"
-      ];
-
-      // Remove duplicates from candidates
-      const uniqueFromCandidates = Array.from(new Set(fromCandidates.filter(Boolean)));
-
-      // Helper function to send email via Resend API
-      const deliverWithCandidate = async (fromAddress: string, toAddress: string, subjectLine: string) => {
-        const response = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${apiKey.trim()}`
-          },
-          body: JSON.stringify({
-            from: fromAddress,
-            to: [toAddress],
-            subject: subjectLine,
-            text: emailBodyText,
-            html: emailBodyText.replace(/\n/g, "<br />")
-          })
-        });
-
-        const status = response.status;
-        const data = await response.json().catch(() => ({}));
-
-        return {
-          ok: response.ok,
-          status,
-          data
-        };
-      };
-
-      // Attempt to deliver to each recipient individually so a sandbox rejection or unverified recipient error for one address does NOT block the rest!
-      for (const recipient of uniqueRecipients) {
-        let recipientSent = false;
-        let recipientLastError: any = null;
-
+      // Unified fast delivery helper per single recipient
+      const deliverToRecipient = async (recipient: string) => {
         const isCustomerCopy = recipient.toLowerCase() === email.toLowerCase();
         const targetSubject = isCustomerCopy 
           ? `Vahvistus tarjouspyynnöstäsi / Confirmation of request - puhdas-tila.com`
           : subject;
 
-        // Try the candidate sender addresses one by one until one successfully delivers
-        for (const candidateFrom of uniqueFromCandidates) {
-          try {
-            console.log(`Checking Resend delivery to ${recipient} from sender label: ${candidateFrom}...`);
-            const result = await deliverWithCandidate(candidateFrom, recipient, targetSubject);
+        // Custom FROM is highest preference; we always fall back only to verified onboarding@resend.dev
+        const senderCandidates = [];
+        if (process.env.FROM_EMAIL && process.env.FROM_EMAIL.trim() !== "") {
+          senderCandidates.push(process.env.FROM_EMAIL.trim());
+        }
+        senderCandidates.push("Puhdas Tila Verkkosivut <onboarding@resend.dev>");
+        senderCandidates.push("onboarding@resend.dev");
 
-            if (result.ok) {
-              successfulDeliveries++;
-              sentIds.push(result.data.id || "unknown-id");
-              recipientSent = true;
-              deliveryDetails.push(`Delivered to ${recipient} via ${candidateFrom}`);
-              console.log(`Successfully delivered email to ${recipient} using ${candidateFrom}`);
-              break; // Delivery succeeded for this recipient, proceed to next recipient!
+        const uniqueSenders = Array.from(new Set(senderCandidates));
+        let lastRecipientError: any = null;
+
+        for (const sender of uniqueSenders) {
+          try {
+            console.log(`Resend: Attempting delivery to <${recipient}> from <${sender}>...`);
+            const response = await fetch("https://api.resend.com/emails", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${apiKey.trim()}`
+              },
+              body: JSON.stringify({
+                from: sender,
+                to: [recipient],
+                subject: targetSubject,
+                text: emailBodyText,
+                html: emailBodyText.replace(/\n/g, "<br />")
+              })
+            });
+
+            const data = await response.json().catch(() => ({}));
+
+            if (response.ok) {
+              return {
+                success: true,
+                recipient,
+                sender,
+                id: data.id || "unknown-id"
+              };
             } else {
-              recipientLastError = result.data;
-              console.warn(`Resend Rejected ${candidateFrom} -> ${recipient} (Status ${result.status}):`, result.data?.message || result.data);
+              lastRecipientError = {
+                status: response.status,
+                data
+              };
+              console.warn(`Resend rejection details (${sender} -> ${recipient}):`, data);
+
+              const errorMessage = (data.message || "").toLowerCase();
+              const isSandboxError = errorMessage.includes("sandbox") || errorMessage.includes("registered sign up");
+              
+              if (isSandboxError) {
+                // If it is a sandbox recipient restriction, no other sender is going to succeed. 
+                // Break the loop immediately and return this error to save precious connection time!
+                break;
+              }
             }
-          } catch (itemErr: any) {
-            recipientLastError = itemErr;
-            console.error(`Fetch connect failure trying ${candidateFrom} -> ${recipient}:`, itemErr);
+          } catch (err: any) {
+            lastRecipientError = { error: err.message || err };
+            console.error(`Resend network/fetch crash (${sender} -> ${recipient}):`, err);
           }
         }
 
-        if (!recipientSent) {
-          lastError = recipientLastError;
+        return {
+          success: false,
+          recipient,
+          error: lastRecipientError
+        };
+      };
+
+      // Execute all deliveries simultaneously in parallel to ensure extremely fast execution and prevent gateway timeouts
+      const results = await Promise.all(
+        uniqueRecipients.map(recipient => deliverToRecipient(recipient))
+      );
+
+      // Parse and process parallel query outcomes
+      for (const res of results) {
+        if (res.success) {
+          successfulDeliveries++;
+          sentIds.push(res.id);
+          deliveryDetails.push(`Delivered to ${res.recipient} via ${res.sender}`);
+        } else {
+          lastError = res.error;
+          failures.push({
+            recipient: res.recipient,
+            error: res.error
+          });
         }
       }
+
+      const hasPartialFailures = failures.length > 0;
 
       if (successfulDeliveries === 0) {
         console.error("Resend API fully failed to deliver to any recipient:", lastError);
         return res.status(400).json({
           success: false,
           emailSent: false,
-          error: lastError?.message || "Resend email delivery failed for all recipients",
+          error: lastError?.data?.message || lastError?.error || "Resend email delivery failed for all recipients",
           details: lastError,
           diagnostics: {
             hasApiKey: !!apiKey,
             apiKeyLength: apiKey ? apiKey.trim().length : 0,
             apiKeyPrefix: apiKey ? apiKey.trim().substring(0, 10) : 'none',
             recipientsAttempted: uniqueRecipients,
-            fromCandidatesTried: uniqueFromCandidates
+            failures: failures
           }
         });
       }
@@ -228,7 +249,14 @@ Tämä sähköposti on lähetetty automaattisesti puhdas-tila.com -verkkosivusto
         emailSent: true, 
         id: sentIds[0], 
         ids: sentIds,
-        message: `Sähköposti lähetetty onnistuneesti ${successfulDeliveries} vastaanottajalle.`
+        partialFailure: hasPartialFailures,
+        message: `Sähköposti lähetetty onnistuneesti ${successfulDeliveries} vastaanottajalle.`,
+        diagnostics: {
+          hasApiKey: true,
+          recipientsAttempted: uniqueRecipients,
+          failures: failures,
+          deliveryDetails: deliveryDetails
+        }
       });
     } catch (err: any) {
       console.error("Contact form endpoint fully crashed:", err);

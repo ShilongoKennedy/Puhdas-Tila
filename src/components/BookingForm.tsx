@@ -47,6 +47,7 @@ export default function BookingForm({ lang, prefilledService = '', prefilledSize
     provider: 'resend' | 'web3forms' | 'none';
     error?: string;
     diagnostics?: any;
+    partialFailure?: boolean;
   }>({ sent: false, provider: 'none' });
 
   const handleInputChange = (
@@ -132,7 +133,12 @@ export default function BookingForm({ lang, prefilledService = '', prefilledSize
       const serverResult = await serverResponse.json().catch(() => ({}));
 
       if (serverResponse.ok && serverResult.success && serverResult.emailSent) {
-        setEmailStatus({ sent: true, provider: 'resend' });
+        setEmailStatus({ 
+          sent: true, 
+          provider: 'resend',
+          partialFailure: serverResult.partialFailure || false,
+          diagnostics: serverResult.diagnostics || null
+        });
         setIsSubmitting(false);
         setIsSubmitted(true);
         return;
@@ -649,12 +655,33 @@ export default function BookingForm({ lang, prefilledService = '', prefilledSize
                   {/* Success banner if Resend API delivered successfully */}
                   {emailStatus.provider === 'resend' && emailStatus.sent && (
                     <div className="my-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-left text-emerald-950 text-xs leading-relaxed max-w-md shadow-xs">
-                      <div className="flex items-start gap-2.5">
+                       <div className="flex items-start gap-2.5">
                         <span className="text-emerald-600 font-bold shrink-0">✓</span>
                         <div>
                           <p className="font-bold text-emerald-900">Sähköposti lähetetty onnistuneesti!</p>
                           <p className="opacity-95 text-[11px] mt-0.5 leading-normal">
                             Varaustiedot välitettiin reaaliajassa sähköpostitse Resend API-integraation kautta ylläpitäjälle.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Sandbox Informational Explainer if some deliveries were skipped under a Sandbox Key */}
+                  {emailStatus.provider === 'resend' && emailStatus.sent && emailStatus.partialFailure && (
+                    <div className="my-4 p-4 bg-amber-50 border border-amber-200 rounded-xl text-left text-amber-950 text-xs leading-relaxed max-w-md shadow-xs">
+                      <div className="flex items-start gap-2.5">
+                        <span className="text-amber-600 font-bold shrink-0 text-sm">ℹ</span>
+                        <div>
+                          <p className="font-bold text-amber-900">
+                            Resend Sandbox-huomautus (Lähetys onnistui osittain)
+                          </p>
+                          <p className="opacity-95 text-[11px] mt-0.5 leading-normal">
+                            Sähköposti toimitettiin onnistuneesti ylläpitäjän sähköpostiin <strong>(info@puhdas-tila.com)</strong>! <br /><br />
+                            Koska käytössä on ilmainen Resend-kokeilutili (Sandbox), automaattinen vahvistusviesti asiakkaan omaan sähköpostiin (<code>{formData.email}</code>) ohitettiin, sillä Resend sallii sandboxissa viestien lähetyksen vain vahvistetulle omistajalle.
+                          </p>
+                          <p className="mt-2.5 text-[10px] opacity-80 font-mono leading-normal border-t border-amber-200/50 pt-2">
+                            <strong>Ratkaisu vapaaseen lähetykseen:</strong> Vahvista oma verkkotunnuksesi (domain) Resend-hallintapaneelissasi, niin automaattiset vahvistusviestit lähetetään myös asiakkaille!
                           </p>
                         </div>
                       </div>
