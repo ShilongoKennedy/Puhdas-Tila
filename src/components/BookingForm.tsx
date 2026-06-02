@@ -116,6 +116,9 @@ export default function BookingForm({ lang, prefilledService = '', prefilledSize
     setIsSubmitting(true);
     saveBookingLocally(formData);
 
+    let resendFailedError: string | null = null;
+    let resendDiagnostics: any = null;
+
     // 1. Prefer our high-reliability server-side proxy route (which utilizes RESEND_API_KEY)
     try {
       const serverResponse = await fetch('/api/contact', {
@@ -128,31 +131,19 @@ export default function BookingForm({ lang, prefilledService = '', prefilledSize
 
       const serverResult = await serverResponse.json().catch(() => ({}));
 
-      if (serverResponse.ok) {
-        if (serverResult.success) {
-          if (serverResult.emailSent) {
-            setEmailStatus({ sent: true, provider: 'resend' });
-            setIsSubmitting(false);
-            setIsSubmitted(true);
-            return;
-          } else {
-            console.warn('Server saved local copy but returned emailSent: false. Falling back to verify if Web3Forms is available...');
-          }
-        }
-      } else {
-        // Expose explicit Resend sending failure
-        setEmailStatus({ 
-          sent: false, 
-          provider: 'resend', 
-          error: serverResult.error || serverResult.message || 'Sähköpostin lähetysvirhe / Email delivery error',
-          diagnostics: serverResult.diagnostics || null
-        });
+      if (serverResponse.ok && serverResult.success && serverResult.emailSent) {
+        setEmailStatus({ sent: true, provider: 'resend' });
         setIsSubmitting(false);
         setIsSubmitted(true);
         return;
+      } else {
+        console.warn('Server contact API failed or returned emailSent: false. Error:', serverResult.error || 'Unknown error');
+        resendFailedError = serverResult.error || serverResult.message || 'Resend email delivery failed';
+        resendDiagnostics = serverResult.diagnostics || null;
       }
     } catch (serverErr) {
-      console.warn('Server contact API route was unreachable or failed. Falling back to verify Web3Forms...', serverErr);
+      console.warn('Server contact API route was unreachable or failed.', serverErr);
+      resendFailedError = 'Taustapalvelimeen ei saatu yhteyttä / Backend unreachable';
     }
 
     // 2. Client-side Web3Forms fallback if client holds active access keys
@@ -187,7 +178,20 @@ export default function BookingForm({ lang, prefilledService = '', prefilledSize
       }
     }
 
-    // 3. Fallback to offline simulation if no API credentials exist in secrets
+    // 3. Expose the Resend delivery error if both APIs failed
+    if (resendFailedError) {
+      setEmailStatus({ 
+        sent: false, 
+        provider: 'resend', 
+        error: resendFailedError,
+        diagnostics: resendDiagnostics
+      });
+      setIsSubmitting(false);
+      setIsSubmitted(true);
+      return;
+    }
+
+    // 4. Fallback to offline simulation if no API credentials exist in secrets
     setEmailStatus({ sent: false, provider: 'none' });
     setTimeout(() => {
       setIsSubmitting(false);

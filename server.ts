@@ -128,42 +128,81 @@ Tämä sähköposti on lähetetty automaattisesti puhdas-tila.com -verkkosivusto
       let successfulDeliveries = 0;
       let lastError: any = null;
       let sentIds: string[] = [];
+      const deliveryDetails: string[] = [];
+
+      // List of candidate sender identities, ordered by probability of success/preference
+      const fromCandidates = [
+        finalFrom, // e.g. custom FROM_EMAIL if defined, or onboarding@resend.dev
+        "Puhdas Tila Verkkosivut <onboarding@resend.dev>",
+        "Puhdas Tila <info@puhdas-tila.com>",
+        "Puhdas Tila <asiakaspalvelu@puhdas-tila.com>"
+      ];
+
+      // Remove duplicates from candidates
+      const uniqueFromCandidates = Array.from(new Set(fromCandidates.filter(Boolean)));
+
+      // Helper function to send email via Resend API
+      const deliverWithCandidate = async (fromAddress: string, toAddress: string, subjectLine: string) => {
+        const response = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey.trim()}`
+          },
+          body: JSON.stringify({
+            from: fromAddress,
+            to: [toAddress],
+            subject: subjectLine,
+            text: emailBodyText,
+            html: emailBodyText.replace(/\n/g, "<br />")
+          })
+        });
+
+        const status = response.status;
+        const data = await response.json().catch(() => ({}));
+
+        return {
+          ok: response.ok,
+          status,
+          data
+        };
+      };
 
       // Attempt to deliver to each recipient individually so a sandbox rejection or unverified recipient error for one address does NOT block the rest!
       for (const recipient of uniqueRecipients) {
-        try {
-          const isCustomerCopy = recipient.toLowerCase() === email.toLowerCase();
-          const targetSubject = isCustomerCopy 
-            ? `Vahvistus tarjouspyynnöstäsi / Confirmation of request - puhdas-tila.com`
-            : subject;
+        let recipientSent = false;
+        let recipientLastError: any = null;
 
-          const response = await fetch("https://api.resend.com/emails", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${apiKey.trim()}`
-            },
-            body: JSON.stringify({
-              from: finalFrom,
-              to: [recipient],
-              subject: targetSubject,
-              text: emailBodyText,
-              html: emailBodyText.replace(/\n/g, "<br />")
-            })
-          });
+        const isCustomerCopy = recipient.toLowerCase() === email.toLowerCase();
+        const targetSubject = isCustomerCopy 
+          ? `Vahvistus tarjouspyynnöstäsi / Confirmation of request - puhdas-tila.com`
+          : subject;
 
-          const data = await response.json();
-          if (response.ok) {
-            successfulDeliveries++;
-            sentIds.push(data.id);
-            console.log(`Successfully sent email to ${recipient}:`, data.id);
-          } else {
-            console.warn(`Resend sandbox/restriction skipped delivery to ${recipient}:`, data.message);
-            lastError = data;
+        // Try the candidate sender addresses one by one until one successfully delivers
+        for (const candidateFrom of uniqueFromCandidates) {
+          try {
+            console.log(`Checking Resend delivery to ${recipient} from sender label: ${candidateFrom}...`);
+            const result = await deliverWithCandidate(candidateFrom, recipient, targetSubject);
+
+            if (result.ok) {
+              successfulDeliveries++;
+              sentIds.push(result.data.id || "unknown-id");
+              recipientSent = true;
+              deliveryDetails.push(`Delivered to ${recipient} via ${candidateFrom}`);
+              console.log(`Successfully delivered email to ${recipient} using ${candidateFrom}`);
+              break; // Delivery succeeded for this recipient, proceed to next recipient!
+            } else {
+              recipientLastError = result.data;
+              console.warn(`Resend Rejected ${candidateFrom} -> ${recipient} (Status ${result.status}):`, result.data?.message || result.data);
+            }
+          } catch (itemErr: any) {
+            recipientLastError = itemErr;
+            console.error(`Fetch connect failure trying ${candidateFrom} -> ${recipient}:`, itemErr);
           }
-        } catch (err: any) {
-          console.error(`Connection error to deliver email to ${recipient}:`, err);
-          lastError = err;
+        }
+
+        if (!recipientSent) {
+          lastError = recipientLastError;
         }
       }
 
@@ -178,7 +217,8 @@ Tämä sähköposti on lähetetty automaattisesti puhdas-tila.com -verkkosivusto
             hasApiKey: !!apiKey,
             apiKeyLength: apiKey ? apiKey.trim().length : 0,
             apiKeyPrefix: apiKey ? apiKey.trim().substring(0, 10) : 'none',
-            recipientsAttempted: uniqueRecipients
+            recipientsAttempted: uniqueRecipients,
+            fromCandidatesTried: uniqueFromCandidates
           }
         });
       }
