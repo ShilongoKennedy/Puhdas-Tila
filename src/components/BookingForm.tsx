@@ -46,6 +46,7 @@ export default function BookingForm({ lang, prefilledService = '', prefilledSize
     sent: boolean;
     provider: 'resend' | 'web3forms' | 'none';
     error?: string;
+    diagnostics?: any;
   }>({ sent: false, provider: 'none' });
 
   const handleInputChange = (
@@ -125,8 +126,9 @@ export default function BookingForm({ lang, prefilledService = '', prefilledSize
         body: JSON.stringify(formData),
       });
 
+      const serverResult = await serverResponse.json().catch(() => ({}));
+
       if (serverResponse.ok) {
-        const serverResult = await serverResponse.json();
         if (serverResult.success) {
           if (serverResult.emailSent) {
             setEmailStatus({ sent: true, provider: 'resend' });
@@ -137,6 +139,17 @@ export default function BookingForm({ lang, prefilledService = '', prefilledSize
             console.warn('Server saved local copy but returned emailSent: false. Falling back to verify if Web3Forms is available...');
           }
         }
+      } else {
+        // Expose explicit Resend sending failure
+        setEmailStatus({ 
+          sent: false, 
+          provider: 'resend', 
+          error: serverResult.error || serverResult.message || 'Sähköpostin lähetysvirhe / Email delivery error',
+          diagnostics: serverResult.diagnostics || null
+        });
+        setIsSubmitting(false);
+        setIsSubmitted(true);
+        return;
       }
     } catch (serverErr) {
       console.warn('Server contact API route was unreachable or failed. Falling back to verify Web3Forms...', serverErr);
@@ -630,7 +643,7 @@ export default function BookingForm({ lang, prefilledService = '', prefilledSize
                   )}
 
                   {/* Success banner if Resend API delivered successfully */}
-                  {emailStatus.provider === 'resend' && (
+                  {emailStatus.provider === 'resend' && emailStatus.sent && (
                     <div className="my-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-left text-emerald-950 text-xs leading-relaxed max-w-md shadow-xs">
                       <div className="flex items-start gap-2.5">
                         <span className="text-emerald-600 font-bold shrink-0">✓</span>
@@ -638,6 +651,41 @@ export default function BookingForm({ lang, prefilledService = '', prefilledSize
                           <p className="font-bold text-emerald-900">Sähköposti lähetetty onnistuneesti!</p>
                           <p className="opacity-95 text-[11px] mt-0.5 leading-normal">
                             Varaustiedot välitettiin reaaliajassa sähköpostitse Resend API-integraation kautta ylläpitäjälle.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Error banner if Resend API failed */}
+                  {emailStatus.provider === 'resend' && !emailStatus.sent && emailStatus.error && (
+                    <div className="my-6 p-4 bg-rose-50 border border-rose-200 rounded-xl text-left text-rose-950 text-xs leading-relaxed max-w-md shadow-xs">
+                      <div className="flex items-start gap-2.5">
+                        <span className="text-rose-600 font-bold shrink-0 text-sm">⚠️</span>
+                        <div>
+                          <p className="font-bold text-rose-900">Sähköpostin lähetys epäonnistui / Email Delivery Failed</p>
+                          <p className="opacity-95 text-[11px] mt-0.5 leading-normal">
+                            Teillä on API-avain asetettuna, mutta taustapalvelimen Resend-integraatio palautti virheen:
+                          </p>
+                          <p className="font-mono bg-white p-2.5 rounded-lg mt-1.5 text-[10px] break-all border border-rose-100 text-rose-800 leading-normal">
+                            <strong>Kuvaus: </strong>{emailStatus.error}
+                          </p>
+                          {emailStatus.diagnostics && (
+                            <div className="mt-2 p-2.5 bg-slate-50 border border-slate-200 rounded text-slate-700">
+                              <p className="font-bold text-slate-900 mb-0.5">Vianmääritys (Server Diagnostics):</p>
+                              <ul className="list-disc list-inside space-y-0.5 font-sans leading-tight text-[10px]">
+                                <li>API-avain havaittu: <code>{emailStatus.diagnostics.hasApiKey ? 'Kyllä (Yes)' : 'Ei (No)'}</code></li>
+                                <li>Pituus (Length): <code>{emailStatus.diagnostics.apiKeyLength} merkkiä</code></li>
+                                <li>Alku (Prefix): <code>{emailStatus.diagnostics.apiKeyPrefix}...</code></li>
+                                <li>Yritetyt vastaanottajat: <code>{JSON.stringify(emailStatus.diagnostics.recipientsAttempted)}</code></li>
+                              </ul>
+                            </div>
+                          )}
+                          <p className="mt-3 text-[11px] text-rose-950 leading-normal opacity-95">
+                            <strong>Miksi tämä tapahtuu? (Crucial Troubleshooting):</strong><br />
+                            Resendin ilmaisella kokeilutilillä (Sandbox) voit lähettää sähköposteja <strong>ainoastaan omalle rekisteröintiosoitteellesi</strong> (eli <code>kennedy.nam@gmail.com</code>). <br /><br />
+                            Jos yrität lähettää muihin osoitteisiin kuten <code>info@puhdas-tila.com</code> ilman domainin vahvistusta, Resend estää sen ja antaa virhekoodin 403.<br />
+                            <em>Ratkaisu: Voit määrittää ylläpitäjän sähköpostisaldoksesi Resend-rekisteröintisähköpostisi, tai vahvistaa oman verkkotunnuksesi Resend-hallintatyökalussa!</em>
                           </p>
                         </div>
                       </div>

@@ -108,7 +108,10 @@ Tämä sähköposti on lähetetty automaattisesti puhdas-tila.com -verkkosivusto
         });
       }
 
-      const finalFrom = "Puhdas Tila Verkkosivut <onboarding@resend.dev>";
+      let finalFrom = "Puhdas Tila Verkkosivut <onboarding@resend.dev>";
+      if (process.env.FROM_EMAIL && process.env.FROM_EMAIL.trim() !== "") {
+        finalFrom = process.env.FROM_EMAIL.trim();
+      }
       
       // Determine targets: include both corporate email and direct admin email addresses
       const adminEmails = ["info@puhdas-tila.com", "kennedy.nam@gmail.com"];
@@ -170,7 +173,13 @@ Tämä sähköposti on lähetetty automaattisesti puhdas-tila.com -verkkosivusto
           success: false,
           emailSent: false,
           error: lastError?.message || "Resend email delivery failed for all recipients",
-          details: lastError
+          details: lastError,
+          diagnostics: {
+            hasApiKey: !!apiKey,
+            apiKeyLength: apiKey ? apiKey.trim().length : 0,
+            apiKeyPrefix: apiKey ? apiKey.trim().substring(0, 10) : 'none',
+            recipientsAttempted: uniqueRecipients
+          }
         });
       }
 
