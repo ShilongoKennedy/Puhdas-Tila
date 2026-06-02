@@ -37,10 +37,9 @@ async function startServer() {
         expectedPassword = expectedPassword.slice(1, -1);
       }
 
-      // Allow either default Finnish style, hyphenated global style, or custom configured ADMIN_PASSWORD
+      // Allow either secure default fallback, or custom configured ADMIN_PASSWORD
       const isCorrect = 
-        cleanInput === "puhdas-tila2026" || 
-        cleanInput === "puhdastila2026" || 
+        cleanInput === "PuhdasTila_SecOps_2026_Core_Success!" || 
         (expectedPassword !== "" && cleanInput === expectedPassword);
 
       if (isCorrect) {

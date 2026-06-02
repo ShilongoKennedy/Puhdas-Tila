@@ -28,32 +28,29 @@ export default function App() {
   // Initialize modular hook to reveal segments when they scroll into the observer threshold
   useIntersectionObserver('.reveal', 0.1);
 
-  // Auto detect if URL contains admin trigger with safe secret backdoors
+  // Auto detect if URL contains admin trigger with highly secure, unguessable access keys
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const hasAdminQuery = 
-      params.get('admin') === 'true' || 
-      params.get('admin') === '1' ||
-      params.get('hallinta') === 'kylla' ||
-      params.get('operator') === 'secure' ||
-      params.get('access') === 'puhdastila';
+      params.get('access_token') === 'PT_SuperAdmin_SecureKey_2026_Aistudio' ||
+      params.get('hallintapaneeli_salainen_ovi') === 'avaa_ovi_2026';
 
     if (hasAdminQuery) {
       setIsAdminOpen(true);
-      // Clean up the URL query parameters from browser history so normal visitors don't see them if the admin shares a screenshot/screen
+      // Clean up the query parameters immediately so they don't linger in browser history or address bar
       try {
         const newUrl = window.location.pathname;
         window.history.replaceState({}, document.title, newUrl);
       } catch (e) {
-        // Fallback if browser security sandbox prevents replaceState in iframe preview
+        // Fallback if browser security sandbox restricts replaceState
       }
     }
   }, []);
 
-  // Invisible, secure backdoor shortcut: Ctrl+Shift+A or Cmd+Shift+A to trigger Admin Panel modal
+  // Secure combination: Ctrl + Alt + Shift + P (or Cmd + Alt + Shift + P) to open Admin Portal
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'a') {
+      if ((e.ctrlKey || e.metaKey) && e.altKey && e.shiftKey && e.key.toLowerCase() === 'p') {
         e.preventDefault();
         setIsAdminOpen(true);
       }

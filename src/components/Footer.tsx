@@ -253,27 +253,7 @@ export default function Footer({ lang, logoStyle, onOpenAdmin }: FooterProps) {
 
         {/* Separator row footer bottom */}
         <div className="border-t border-white/10 pt-8 flex flex-col sm:flex-row gap-4 justify-between items-center text-xs text-white/45">
-          <p 
-            onDoubleClick={onOpenAdmin}
-            onClick={() => {
-              const now = Date.now();
-              const lastTap = (window as any)._lastFooterTap || 0;
-              const tapCount = (window as any)._footerTapCount || 0;
-              if (now - lastTap < 600) {
-                const newCount = tapCount + 1;
-                (window as any)._footerTapCount = newCount;
-                if (newCount >= 4) { // 5 taps total
-                  onOpenAdmin?.();
-                  (window as any)._footerTapCount = 0;
-                }
-              } else {
-                (window as any)._footerTapCount = 1;
-              }
-              (window as any)._lastFooterTap = now;
-            }}
-            className="cursor-default select-none transition-colors active:text-white/60"
-            title="Copyright info"
-          >
+          <p className="select-none">
             {t.footerCopyright}
           </p>
           <div className="flex flex-wrap items-center gap-4">
