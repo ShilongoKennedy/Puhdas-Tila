@@ -109,62 +109,78 @@ Tämä sähköposti on lähetetty automaattisesti puhdas-tila.com -verkkosivusto
       }
 
       const finalFrom = "Puhdas Tila Verkkosivut <onboarding@resend.dev>";
-      const adminEmail = process.env.ADMIN_EMAIL || "kennedy.nam@gmail.com";
-
-      // Attempt 1: Send to both admin email and target input email
-      let recipients = [adminEmail];
-      if (email && email.trim() !== "" && email.toLowerCase() !== adminEmail.toLowerCase()) {
-        recipients.push(email);
+      
+      // Determine targets: include both corporate email and direct admin email addresses
+      const adminEmails = ["info@puhdas-tila.com", "kennedy.nam@gmail.com"];
+      if (process.env.ADMIN_EMAIL && !adminEmails.includes(process.env.ADMIN_EMAIL)) {
+        adminEmails.unshift(process.env.ADMIN_EMAIL);
       }
 
-      let response = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${apiKey.trim()}`
-        },
-        body: JSON.stringify({
-          from: finalFrom,
-          to: recipients,
-          subject: subject,
-          text: emailBodyText,
-          html: emailBodyText.replace(/\n/g, "<br />")
-        })
-      });
+      // Collect all potential recipients
+      const uniqueRecipients = Array.from(new Set([
+        ...adminEmails,
+        email
+      ].filter(Boolean) as string[]));
 
-      let data = await response.json();
+      let successfulDeliveries = 0;
+      let lastError: any = null;
+      let sentIds: string[] = [];
 
-      // If sending to both fails (e.g., custom input is not verified on Resend free tier), retry sending exclusively to verified administrator
-      if (!response.ok && (data.message?.toLowerCase().includes("verify") || response.status === 403 || response.status === 400)) {
-        console.warn("Warning: Resend unverified recipient block. Falling back to sending exclusively to: " + adminEmail);
-        response = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${apiKey.trim()}`
-          },
-          body: JSON.stringify({
-            from: finalFrom,
-            to: [adminEmail],
-            subject: `${subject} (Vastaanottorajoituksen ohitus)`,
-            text: emailBodyText,
-            html: emailBodyText.replace(/\n/g, "<br />")
-          })
-        });
-        data = await response.json();
+      // Attempt to deliver to each recipient individually so a sandbox rejection or unverified recipient error for one address does NOT block the rest!
+      for (const recipient of uniqueRecipients) {
+        try {
+          const isCustomerCopy = recipient.toLowerCase() === email.toLowerCase();
+          const targetSubject = isCustomerCopy 
+            ? `Vahvistus tarjouspyynnöstäsi / Confirmation of request - puhdas-tila.com`
+            : subject;
+
+          const response = await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${apiKey.trim()}`
+            },
+            body: JSON.stringify({
+              from: finalFrom,
+              to: [recipient],
+              subject: targetSubject,
+              text: emailBodyText,
+              html: emailBodyText.replace(/\n/g, "<br />")
+            })
+          });
+
+          const data = await response.json();
+          if (response.ok) {
+            successfulDeliveries++;
+            sentIds.push(data.id);
+            console.log(`Successfully sent email to ${recipient}:`, data.id);
+          } else {
+            console.warn(`Resend sandbox/restriction skipped delivery to ${recipient}:`, data.message);
+            lastError = data;
+          }
+        } catch (err: any) {
+          console.error(`Connection error to deliver email to ${recipient}:`, err);
+          lastError = err;
+        }
       }
 
-      if (!response.ok) {
-        console.error("Resend API fully failed to execute:", data);
-        return res.status(response.status).json({
+      if (successfulDeliveries === 0) {
+        console.error("Resend API fully failed to deliver to any recipient:", lastError);
+        return res.status(400).json({
           success: false,
           emailSent: false,
-          error: data.message || "Resend email delivery failed",
-          details: data
+          error: lastError?.message || "Resend email delivery failed for all recipients",
+          details: lastError
         });
       }
 
-      return res.json({ success: true, emailSent: true, id: data.id });
+      return res.json({ 
+        success: true, 
+        emailSent: true, 
+        id: sentIds[0], 
+        ids: sentIds,
+        message: `Sähköposti lähetetty onnistuneesti ${successfulDeliveries} vastaanottajalle.`
+      });
     } catch (err: any) {
       console.error("Contact form endpoint fully crashed:", err);
       return res.status(500).json({ success: false, emailSent: false, error: err.message || "Email connection error" });
