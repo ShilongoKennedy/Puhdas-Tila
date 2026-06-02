@@ -42,6 +42,11 @@ export default function BookingForm({ lang, prefilledService = '', prefilledSize
   const [errors, setErrors] = useState<FormErrorState>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [emailStatus, setEmailStatus] = useState<{
+    sent: boolean;
+    provider: 'resend' | 'web3forms' | 'none';
+    error?: string;
+  }>({ sent: false, provider: 'none' });
 
   const handleInputChange = (
     e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -109,9 +114,36 @@ export default function BookingForm({ lang, prefilledService = '', prefilledSize
 
     setIsSubmitting(true);
     saveBookingLocally(formData);
-    
+
+    // 1. Prefer our high-reliability server-side proxy route (which utilizes RESEND_API_KEY)
+    try {
+      const serverResponse = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (serverResponse.ok) {
+        const serverResult = await serverResponse.json();
+        if (serverResult.success) {
+          if (serverResult.emailSent) {
+            setEmailStatus({ sent: true, provider: 'resend' });
+            setIsSubmitting(false);
+            setIsSubmitted(true);
+            return;
+          } else {
+            console.warn('Server saved local copy but returned emailSent: false. Falling back to verify if Web3Forms is available...');
+          }
+        }
+      }
+    } catch (serverErr) {
+      console.warn('Server contact API route was unreachable or failed. Falling back to verify Web3Forms...', serverErr);
+    }
+
+    // 2. Client-side Web3Forms fallback if client holds active access keys
     const accessKey = import.meta.env.VITE_WEB3FORMS_ACCESS_KEY;
-    
     if (accessKey) {
       try {
         const response = await fetch('https://api.web3forms.com/submit', {
@@ -130,31 +162,24 @@ export default function BookingForm({ lang, prefilledService = '', prefilledSize
         
         const result = await response.json();
         if (result.success) {
+          setEmailStatus({ sent: true, provider: 'web3forms' });
           setIsSubmitting(false);
           setIsSubmitted(true);
+          return;
         } else {
           console.error('Web3Forms API Error:', result);
-          // Fallback to high-fidelity simulation so the UX doesn't crash or get stuck
-          setTimeout(() => {
-            setIsSubmitting(false);
-            setIsSubmitted(true);
-          }, 1000);
         }
       } catch (err) {
         console.error('Web3Forms Form Submission failed:', err);
-        // Fallback to high-fidelity simulation on network errors
-        setTimeout(() => {
-          setIsSubmitting(false);
-          setIsSubmitted(true);
-        }, 1000);
       }
-    } else {
-      // If no token is configured yet, run an elegant mockup simulation
-      setTimeout(() => {
-        setIsSubmitting(false);
-        setIsSubmitted(true);
-      }, 1200);
     }
+
+    // 3. Fallback to offline simulation if no API credentials exist in secrets
+    setEmailStatus({ sent: false, provider: 'none' });
+    setTimeout(() => {
+      setIsSubmitting(false);
+      setIsSubmitted(true);
+    }, 1200);
   };
 
   const handleReset = () => {
@@ -576,13 +601,63 @@ export default function BookingForm({ lang, prefilledService = '', prefilledSize
                     {t.successTitle}
                   </h3>
                   
-                  <p className="text-[#4A4A4A] text-sm sm:text-base mb-6 leading-relaxed max-w-sm">
+                  <p className="text-[#4A4A4A] text-sm sm:text-base mb-4 leading-relaxed max-w-sm">
                     {t.successSub}
                   </p>
                   
-                  <p className="text-[#7A7A7A] text-xs sm:text-sm mb-8">
+                  <p className="text-[#7A7A7A] text-xs sm:text-sm mb-2">
                     {t.successVerify}
                   </p>
+
+                  {/* Sandbox / Developer Notice block if email delivery bypassed */}
+                  {emailStatus.provider === 'none' && (
+                    <div className="my-6 p-4 bg-amber-50 border border-amber-200/80 rounded-xl text-left text-amber-900 text-xs leading-relaxed max-w-md shadow-xs">
+                      <div className="flex items-start gap-2.5">
+                        <span className="text-sm shrink-0">💡</span>
+                        <div>
+                          <p className="font-bold mb-0.5 text-amber-950">
+                            Kehittäjän huomautus (Sähköposti ohitettiin)
+                          </p>
+                          <p className="opacity-90 text-[11px] leading-normal">
+                            Tiedot tallennettiin paikallisesti järjestelmän hallintapaneeliin, mutta sähköpostia ei lähetetty, koska palvelun sähköpostitunnuksia (<strong>RESEND_API_KEY</strong> tai <strong>VITE_WEB3FORMS_ACCESS_KEY</strong>) ei ole määritetty tekoälystudion Settings -&gt; Secrets -valikossa.
+                          </p>
+                          <p className="mt-2 text-[10px] opacity-75 font-mono leading-normal">
+                            Developer Note: To test actual email delivery in your own inbox, click the <strong>Settings</strong> gear icon on the top right, open <strong>Secrets (Environment Variables)</strong>, and configure a valid <strong>RESEND_API_KEY</strong>.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Success banner if Resend API delivered successfully */}
+                  {emailStatus.provider === 'resend' && (
+                    <div className="my-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-left text-emerald-950 text-xs leading-relaxed max-w-md shadow-xs">
+                      <div className="flex items-start gap-2.5">
+                        <span className="text-emerald-600 font-bold shrink-0">✓</span>
+                        <div>
+                          <p className="font-bold text-emerald-900">Sähköposti lähetetty onnistuneesti!</p>
+                          <p className="opacity-95 text-[11px] mt-0.5 leading-normal">
+                            Varaustiedot välitettiin reaaliajassa sähköpostitse Resend API-integraation kautta ylläpitäjälle.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Success banner if Web3Forms delivered successfully */}
+                  {emailStatus.provider === 'web3forms' && (
+                    <div className="my-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-left text-emerald-950 text-xs leading-relaxed max-w-md shadow-xs">
+                      <div className="flex items-start gap-2.5">
+                        <span className="text-emerald-600 font-bold shrink-0">✓</span>
+                        <div>
+                          <p className="font-bold text-emerald-900">Sähköposti toimitettu!</p>
+                          <p className="opacity-95 text-[11px] mt-0.5 leading-normal">
+                            Tarjouspyyntö toimitettiin onnistuneesti Web3Forms API-avaimella määritettyyn sähköpostilaatikkoon.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   <motion.button
                     onClick={handleReset}

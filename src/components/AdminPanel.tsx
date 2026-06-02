@@ -535,6 +535,19 @@ export default function AdminPanel({ lang, setLang, onClose }: AdminPanelProps) 
     localStorage.setItem('adm_shifts', JSON.stringify(updated));
   };
 
+  const handleResolveAllOversights = () => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const updated = shifts.map(sh => {
+      if (sh.status === 'Planned' && sh.date < todayStr) {
+        return { ...sh, status: 'Completed' as const };
+      }
+      return sh;
+    });
+    setShifts(updated);
+    localStorage.setItem('adm_shifts', JSON.stringify(updated));
+    setFilterOversightOnly(false);
+  };
+
   // 5. INVENTORY ECO-STOCK ACTIONS
   const updateStock = (id: string, amount: number) => {
     const updated = inventory.map(item => {
@@ -1683,7 +1696,7 @@ export default function AdminPanel({ lang, setLang, onClose }: AdminPanelProps) 
                           
                           {/* Overdue/oversight warning summary and filter toggle */}
                           {shifts.some(sh => sh.status === 'Planned' && sh.date < todayStr) && (
-                            <div id="scheduler-oversight-alert" className="bg-[#FFF1F2] border border-[#FECDD3] rounded-2xl p-4 space-y-3 shadow-xs">
+                            <div id="scheduler-oversight-alert" className="bg-[#FFF1F2] border border-[#FECDD3] rounded-2xl p-4 space-y-3 shadow-xs transition-all duration-300 hover:scale-[1.01] hover:animate-pulse hover:shadow-md hover:border-rose-400">
                               <div className="flex items-start gap-2.5">
                                 <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
                                 <div className="text-left">
@@ -1705,17 +1718,36 @@ export default function AdminPanel({ lang, setLang, onClose }: AdminPanelProps) 
                                   className={`px-3 py-1.5 rounded-lg border font-bold text-[10px] cursor-pointer select-none transition-all flex items-center gap-1.5 ${
                                     filterOversightOnly
                                       ? 'bg-rose-600 border-rose-600 text-white shadow-xs'
-                                      : 'bg-white border-rose-200 text-rose-800 hover:bg-rose-50'
+                                      : 'bg-white border-rose-200 text-rose-800 hover:bg-rose-100/60'
                                   }`}
                                 >
                                   <Filter className="w-3 h-3" />
                                   <span>
                                     {filterOversightOnly
-                                      ? (lang === 'fi' ? 'Näytä kaikki vuorot' : 'Näytä vain ongelmat (Show Oversights Only)')
-                                      : (lang === 'fi' ? 'Suodata vain ongelmavuorot' : 'Filter oversights only')
+                                      ? (lang === 'fi' ? 'Näytä kaikki vuorot' : 'Show All Shifts')
+                                      : (lang === 'fi' ? 'Suodata vain ongelmat' : 'Filter oversights only')
                                     }
                                   </span>
                                 </button>
+                                
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const confirmMsg = lang === 'fi' 
+                                      ? 'Haluatko varmasti merkitä kaikki vanhentuneet suunnitellut vuorot suoritetuiksi?' 
+                                      : 'Are you sure you want to mark all overdue planned shifts as completed?';
+                                    if (window.confirm(confirmMsg)) {
+                                      handleResolveAllOversights();
+                                    }
+                                  }}
+                                  className="bg-rose-700 hover:bg-rose-800 text-white border border-rose-700 px-3 py-1.5 rounded-lg font-bold text-[10px] cursor-pointer select-none transition-all flex items-center gap-1.5 shadow-sm ml-auto"
+                                >
+                                  <Check className="w-3 h-3" />
+                                  <span>
+                                    {lang === 'fi' ? 'Korjaa kaikki (Merkitse valmiiksi)' : 'Resolve All (Mark Completed)'}
+                                  </span>
+                                </button>
+
                                 {filterOversightOnly && (
                                   <button
                                     type="button"

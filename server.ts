@@ -55,6 +55,122 @@ async function startServer() {
     }
   });
 
+  // Public Endpoint to receive and email contact/booking form requests
+  app.post("/api/contact", async (req, res) => {
+    try {
+      const {
+        companyName,
+        contactName,
+        email,
+        phone,
+        serviceType,
+        officeSize,
+        startDate,
+        hasSupplies,
+        notes
+      } = req.body;
+
+      if (!contactName || !email) {
+        return res.status(400).json({ error: "Yhteyshenkilö ja sähköpostiosoite ovat pakollisia. / Contact name and email are required." });
+      }
+
+      const apiKey = process.env.RESEND_API_KEY;
+      
+      // Format the contact/booking summary nicely
+      const subject = `Uusi tarjouspyyntö: ${companyName || 'Yksityinen / Ei ilmoitettu'} (${contactName})`;
+      
+      const emailBodyText = `
+UUSI YHTEYDENOTTO / TARJOUSPYYNTÖ (puhdas-tila.com)
+--------------------------------------------------
+Yrityksen nimi: ${companyName || 'Ei ilmoitettu'}
+Yhteyshenkilö: ${contactName}
+Sähköposti: ${email}
+Puhelin: ${phone || 'Ei ilmoitettu'}
+
+Palvelun tyyppi: ${serviceType === 'kertatilaus' ? 'Kertasiivous' : serviceType === 'jatkuva' ? 'Säännöllinen sopimussiivous' : serviceType || 'Ei määritelty'}
+Toimiston koko: ${officeSize === 'small' ? 'Pieni (alle 100m²)' : officeSize === 'medium' ? 'Keskikokoinen (100-300m²)' : officeSize === 'large' ? 'Suuri (yli 300m²)' : officeSize || 'Ei ilmoitettu'}
+Toivottu aloitusajankohta: ${startDate || 'Heti kun mahdollista'}
+Omat siivousvälineet: ${hasSupplies === 'yes' ? 'Kyllä, löytyy omat' : hasSupplies === 'no' ? 'Ei, tarvitaan välineet' : 'Ei varma'}
+
+Lisätiedot ja erityistoiveet:
+${notes || 'Ei lisätietoja.'}
+
+--
+Tämä sähköposti on lähetetty automaattisesti puhdas-tila.com -verkkosivuston tarjouspyyntölomakkeelta.
+      `;
+
+      if (!apiKey || apiKey.trim() === "" || apiKey === "MY_RESEND_API_KEY") {
+        console.warn("RESEND_API_KEY is blank or unconfigured. Submitted details saved in administrative panel local state.");
+        return res.json({ 
+          success: true, 
+          emailSent: false, 
+          message: "Sähköpostipalvelun API-avainta (RESEND_API_KEY) ei ole asetettu salaisuuksiin. Tiedot tallennettiin paikallisesti hallintapaneeliin." 
+        });
+      }
+
+      const finalFrom = "Puhdas Tila Verkkosivut <onboarding@resend.dev>";
+      const adminEmail = process.env.ADMIN_EMAIL || "kennedy.nam@gmail.com";
+
+      // Attempt 1: Send to both admin email and target input email
+      let recipients = [adminEmail];
+      if (email && email.trim() !== "" && email.toLowerCase() !== adminEmail.toLowerCase()) {
+        recipients.push(email);
+      }
+
+      let response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey.trim()}`
+        },
+        body: JSON.stringify({
+          from: finalFrom,
+          to: recipients,
+          subject: subject,
+          text: emailBodyText,
+          html: emailBodyText.replace(/\n/g, "<br />")
+        })
+      });
+
+      let data = await response.json();
+
+      // If sending to both fails (e.g., custom input is not verified on Resend free tier), retry sending exclusively to verified administrator
+      if (!response.ok && (data.message?.toLowerCase().includes("verify") || response.status === 403 || response.status === 400)) {
+        console.warn("Warning: Resend unverified recipient block. Falling back to sending exclusively to: " + adminEmail);
+        response = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey.trim()}`
+          },
+          body: JSON.stringify({
+            from: finalFrom,
+            to: [adminEmail],
+            subject: `${subject} (Vastaanottorajoituksen ohitus)`,
+            text: emailBodyText,
+            html: emailBodyText.replace(/\n/g, "<br />")
+          })
+        });
+        data = await response.json();
+      }
+
+      if (!response.ok) {
+        console.error("Resend API fully failed to execute:", data);
+        return res.status(response.status).json({
+          success: false,
+          emailSent: false,
+          error: data.message || "Resend email delivery failed",
+          details: data
+        });
+      }
+
+      return res.json({ success: true, emailSent: true, id: data.id });
+    } catch (err: any) {
+      console.error("Contact form endpoint fully crashed:", err);
+      return res.status(500).json({ success: false, emailSent: false, error: err.message || "Email connection error" });
+    }
+  });
+
   // Secure programmatic direct email dispatcher endpoint
   app.post("/api/admin/send-email", async (req, res) => {
     try {
