@@ -30,4 +30,5 @@ export interface FormErrorState {
   email?: string;
   serviceType?: string;
   officeSize?: string;
+  notes?: string;
 }

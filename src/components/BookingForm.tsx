@@ -64,9 +64,6 @@ export default function BookingForm({ lang, prefilledService = '', prefilledSize
 
   const validateForm = (): boolean => {
     const newErrors: FormErrorState = {};
-    if (!formData.companyName.trim()) {
-      newErrors.companyName = t.requiredError;
-    }
     if (!formData.contactName.trim()) {
       newErrors.contactName = t.requiredError;
     }
@@ -75,11 +72,8 @@ export default function BookingForm({ lang, prefilledService = '', prefilledSize
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = t.emailError;
     }
-    if (!formData.serviceType) {
-      newErrors.serviceType = t.serviceError;
-    }
-    if (!formData.officeSize) {
-      newErrors.officeSize = t.sizeError;
+    if (!formData.notes.trim()) {
+      newErrors.notes = t.requiredError;
     }
 
     setErrors(newErrors);
@@ -349,29 +343,7 @@ export default function BookingForm({ lang, prefilledService = '', prefilledSize
               {!isSubmitted ? (
                 <form onSubmit={handleSubmit} className="space-y-6" noValidate>
                   
-                  {/* Field 1: Yrityksen nimi */}
-                  <div>
-                    <label htmlFor="companyName" className="block text-sm font-bold text-[#1A1A1A] mb-1.5">
-                      {t.fieldCompany}
-                    </label>
-                    <input
-                      type="text"
-                      id="companyName"
-                      name="companyName"
-                      value={formData.companyName}
-                      onChange={handleInputChange}
-                      placeholder={t.fieldCompanyPl}
-                      className={`w-full px-4 py-3 rounded-lg border text-sm transition-colors duration-200 outline-none ${
-                        errors.companyName ? 'border-[#C0392B] focus:border-[#C0392B]' : 'border-[#E0E4DC] focus:border-[#1B4332]'
-                      }`}
-                      required
-                    />
-                    {errors.companyName && (
-                      <p className="text-[#C0392B] text-xs mt-1.5 font-medium">{errors.companyName}</p>
-                    )}
-                  </div>
-
-                  {/* Field 2: Yhteyshenkilön nimi */}
+                  {/* Field 1: Name & Company */}
                   <div>
                     <label htmlFor="contactName" className="block text-sm font-bold text-[#1A1A1A] mb-1.5">
                       {t.fieldContact}
@@ -393,172 +365,29 @@ export default function BookingForm({ lang, prefilledService = '', prefilledSize
                     )}
                   </div>
 
-                  {/* Field 3 & 4: Sähköposti & Puhelin side-by-side on desktop */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="email" className="block text-sm font-bold text-[#1A1A1A] mb-1.5">
-                        {t.fieldEmail}
-                      </label>
-                      <input
-                        type="email"
-                        id="email"
-                        name="email"
-                        value={formData.email}
-                        onChange={handleInputChange}
-                        placeholder={t.fieldEmailPl}
-                        className={`w-full px-4 py-3 rounded-lg border text-sm transition-colors duration-200 outline-none ${
-                          errors.email ? 'border-[#C0392B] focus:border-[#C0392B]' : 'border-[#E0E4DC] focus:border-[#1B4332]'
-                        }`}
-                        required
-                      />
-                      {errors.email && (
-                        <p className="text-[#C0392B] text-xs mt-1.5 font-medium">{errors.email}</p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label htmlFor="phone" className="block text-sm font-bold text-[#1A1A1A] mb-1.5">
-                        {t.fieldPhone}
-                      </label>
-                      <input
-                        type="tel"
-                        id="phone"
-                        name="phone"
-                        value={formData.phone}
-                        onChange={handleInputChange}
-                        placeholder={t.fieldPhonePl}
-                        className="w-full px-4 py-3 rounded-lg border border-[#E0E4DC] text-sm focus:border-[#1B4332] outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Field 5: Palvelutyyppi selection drop list */}
+                  {/* Field 2: Email Address */}
                   <div>
-                    <label htmlFor="serviceType" className="block text-sm font-bold text-[#1A1A1A] mb-1.5">
-                      {t.fieldServiceType}
-                    </label>
-                    <div className="relative">
-                      <select
-                        id="serviceType"
-                        name="serviceType"
-                        value={formData.serviceType}
-                        onChange={handleInputChange}
-                        className={`w-full px-4 py-3 rounded-lg border text-sm bg-white outline-none appearance-none transition-colors duration-200 ${
-                          errors.serviceType ? 'border-[#C0392B] focus:border-[#C0392B]' : 'border-[#E0E4DC] focus:border-[#1B4332]'
-                        }`}
-                        required
-                      >
-                        <option value="">{t.fieldServiceChoose}</option>
-                        <option value="kertatilaus">{t.fieldServiceOnetime}</option>
-                        <option value="kuukausi">{t.fieldServiceRec}</option>
-                        <option value="perus_lahto">{t.fieldServiceDeep}</option>
-                        <option value="raataloity">{t.fieldServiceCustom}</option>
-                        <option value="muu">{t.fieldServiceOther}</option>
-                      </select>
-                      <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-[#7A7A7A]">
-                        <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20">
-                          <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                        </svg>
-                      </div>
-                    </div>
-                    {errors.serviceType && (
-                      <p className="text-[#C0392B] text-xs mt-1.5 font-medium">{errors.serviceType}</p>
-                    )}
-                  </div>
-
-                  {/* Field 6: Toimiston arvioitu koko */}
-                  <div>
-                    <label htmlFor="officeSize" className="block text-sm font-bold text-[#1A1A1A] mb-1.5">
-                      {t.fieldSize}
-                    </label>
-                    <div className="relative">
-                      <select
-                        id="officeSize"
-                        name="officeSize"
-                        value={formData.officeSize}
-                        onChange={handleInputChange}
-                        className={`w-full px-4 py-3 rounded-lg border text-sm bg-white outline-none appearance-none transition-colors duration-200 ${
-                          errors.officeSize ? 'border-[#C0392B] focus:border-[#C0392B]' : 'border-[#E0E4DC] focus:border-[#1B4332]'
-                        }`}
-                        required
-                      >
-                        <option value="">{t.fieldSizeChoose}</option>
-                        <option value="pieni">{t.fieldSizeSmall}</option>
-                        <option value="keski">{t.fieldSizeMedium}</option>
-                        <option value="suuri">{t.fieldSizeLarge}</option>
-                        <option value="jatti">{t.fieldSizeJumbo}</option>
-                      </select>
-                      <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-[#7A7A7A]">
-                        <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20">
-                          <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                        </svg>
-                      </div>
-                    </div>
-                    {errors.officeSize && (
-                      <p className="text-[#C0392B] text-xs mt-1.5 font-medium">{errors.officeSize}</p>
-                    )}
-                  </div>
-
-                  {/* Field 7: Conditionally rendered starting date picker */}
-                  <div>
-                    <label htmlFor="startDate" className="block text-sm font-bold text-[#1A1A1A] mb-1.5">
-                      {formData.serviceType === 'kertatilaus'
-                        ? t.fieldDateOnetime
-                        : t.fieldDateRec}
+                    <label htmlFor="email" className="block text-sm font-bold text-[#1A1A1A] mb-1.5">
+                      {t.fieldEmail}
                     </label>
                     <input
-                      type="date"
-                      id="startDate"
-                      name="startDate"
-                      value={formData.startDate}
+                      type="email"
+                      id="email"
+                      name="email"
+                      value={formData.email}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 rounded-lg border border-[#E0E4DC] text-sm focus:border-[#1B4332] bg-white outline-none"
+                      placeholder={t.fieldEmailPl}
+                      className={`w-full px-4 py-3 rounded-lg border text-sm transition-colors duration-200 outline-none ${
+                        errors.email ? 'border-[#C0392B] focus:border-[#C0392B]' : 'border-[#E0E4DC] focus:border-[#1B4332]'
+                      }`}
+                      required
                     />
+                    {errors.email && (
+                      <p className="text-[#C0392B] text-xs mt-1.5 font-medium">{errors.email}</p>
+                    )}
                   </div>
 
-                  {/* Field 8: Onko yrityksellänne omat siivousvälineet */}
-                  <div>
-                    <span className="block text-sm font-bold text-[#1A1A1A] mb-2.5">
-                      {t.fieldToolsLabel}
-                    </span>
-                    <div className="flex flex-wrap gap-4 sm:gap-6">
-                      <label className="flex items-center gap-2 text-sm text-[#4A4A4A] cursor-pointer">
-                        <input
-                          type="radio"
-                          name="hasSupplies"
-                          value="yes"
-                          checked={formData.hasSupplies === 'yes'}
-                          onChange={handleInputChange}
-                          className="w-4.5 h-4.5 text-[#1B4332] border-[#E0E4DC] focus:ring-[#1B4332]"
-                        />
-                        {t.fieldToolsYes}
-                      </label>
-                      <label className="flex items-center gap-2 text-sm text-[#4A4A4A] cursor-pointer">
-                        <input
-                          type="radio"
-                          name="hasSupplies"
-                          value="no"
-                          checked={formData.hasSupplies === 'no'}
-                          onChange={handleInputChange}
-                          className="w-4.5 h-4.5 text-[#1B4332] border-[#E0E4DC] focus:ring-[#1B4332]"
-                        />
-                        {t.fieldToolsNo}
-                      </label>
-                      <label className="flex items-center gap-2 text-sm text-[#4A4A4A] cursor-pointer">
-                        <input
-                          type="radio"
-                          name="hasSupplies"
-                          value="dont_know"
-                          checked={formData.hasSupplies === 'dont_know'}
-                          onChange={handleInputChange}
-                          className="w-4.5 h-4.5 text-[#1B4332] border-[#E0E4DC] focus:ring-[#1B4332]"
-                        />
-                        {t.fieldToolsMaybe}
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* Field 9: Lisätietoja tai erityistoiveet */}
+                  {/* Field 3: What do you need */}
                   <div>
                     <label htmlFor="notes" className="block text-sm font-bold text-[#1A1A1A] mb-1.5">
                       {t.fieldNotes}
@@ -568,10 +397,16 @@ export default function BookingForm({ lang, prefilledService = '', prefilledSize
                       name="notes"
                       value={formData.notes}
                       onChange={handleInputChange}
-                      rows={4}
+                      rows={5}
                       placeholder={t.fieldNotesPl}
-                      className="w-full px-4 py-3 rounded-lg border border-[#E0E4DC] text-sm focus:border-[#1B4332] outline-none resize-none"
+                      className={`w-full px-4 py-3 rounded-lg border text-sm transition-colors duration-200 outline-none resize-none ${
+                        errors.notes ? 'border-[#C0392B] focus:border-[#C0392B]' : 'border-[#E0E4DC] focus:border-[#1B4332]'
+                      }`}
+                      required
                     />
+                    {errors.notes && (
+                      <p className="text-[#C0392B] text-xs mt-1.5 font-medium">{errors.notes}</p>
+                    )}
                   </div>
 
                   {/* Privacy note warning */}

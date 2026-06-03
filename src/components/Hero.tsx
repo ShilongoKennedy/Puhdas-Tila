@@ -11,8 +11,8 @@ interface HeroProps {
 export default function Hero({ lang }: HeroProps) {
   const t = translations[lang];
 
-  const wordsFi = ['parasta', 'puhtainta', 'reiluinta', 'kirkkainta', 'raikkainta'];
-  const wordsEn = ['best', 'cleanest', 'fairest', 'brightest', 'freshest'];
+  const wordsFi = ['joustavasti', 'reilusti', 'varmasti', 'puhtaasti', 'luotettavasti'];
+  const wordsEn = ['flexibly', 'fairly', 'safely', 'pristinely', 'reliably'];
   const words = lang === 'fi' ? wordsFi : wordsEn;
 
   const [wordIndex, setWordIndex] = useState(0);

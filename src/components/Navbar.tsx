@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Menu, X, ArrowRight, Languages, Lock } from 'lucide-react';
+import { Menu, X, ArrowRight, Languages, Lock, Phone } from 'lucide-react';
 import { Language, translations } from '../translations';
 import Logo from './Logo';
 
@@ -168,7 +168,19 @@ export default function Navbar({ lang, setLang, logoStyle, onOpenAdmin }: Navbar
           </nav>
 
           {/* Nav Right Action & Selector Button Area */}
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-6">
+            <a 
+              href="tel:+358406345252" 
+              className={`flex items-center gap-1.5 font-sans font-bold text-sm transition-all focus:outline-none ${
+                isScrolled 
+                  ? 'text-[#1B4332] hover:text-[#2D6A4F]' 
+                  : 'text-white hover:text-[#95C4A1]'
+              }`}
+            >
+              <Phone className="w-4.5 h-4.5 text-[#95C4A1]" />
+              <span>+358 40 634 5252</span>
+            </a>
+
             {/* Admin entry is removed to prevent guessing or unauthorized access */}
             {/* Elegant Pill Language Switcher */}
             <div className="flex items-center bg-black/10 dark:bg-white/10 p-0.5 rounded-full border border-current/15 gap-0.5">
@@ -274,6 +286,13 @@ export default function Navbar({ lang, setLang, logoStyle, onOpenAdmin }: Navbar
               {t.navContact}
             </button>
             {/* Mobile menu admin link is removed for security purposes */}
+            <a 
+              href="tel:+358406345252" 
+              className="w-full flex items-center justify-center gap-2 py-2.5 border border-[#1B4332] text-[#1B4332] font-semibold rounded-full hover:bg-slate-50 transition-colors focus:outline-none cursor-pointer text-sm"
+            >
+              <Phone className="w-4 h-4 text-[#95C4A1]" />
+              <span>+358 40 634 5252</span>
+            </a>
             <button
               onClick={() => handleLinkClick('varaus')}
               className="w-full text-center py-3 bg-[#1B4332] text-white font-bold rounded-full hover:bg-[#2D6A4F] transition-colors focus:outline-none cursor-pointer"

@@ -22,7 +22,20 @@ export default function Pricing({ lang, onPrefillQuote }: PricingProps) {
   const [estHours, setEstHours] = useState<number>(0);
   const [isDiscountApplied, setIsDiscountApplied] = useState<boolean>(true);
 
-  // Dynamic formula to approximate office cleaning pricing in Helsinki region
+  // Computations for active promotion and accurate billing estimates
+  const rate = frequency === 'onetime' ? 30 : 25;
+  const hoursMax = Math.max(2.0, Math.round(estHours * 1.35 * 10) / 10);
+  
+  const discountAmountMin = frequency === 'onetime' ? minPrice : Math.round(estHours * rate);
+  const discountAmountMax = frequency === 'onetime' ? maxPrice : Math.round(hoursMax * rate);
+  
+  const discountedMinPrice = Math.max(0, minPrice - discountAmountMin);
+  const discountedMaxPrice = Math.max(0, maxPrice - discountAmountMax);
+
+  // Dynamic formula to approximate office cleaning pricing with updated rates:
+  // - Regular arrangement: €25/hour
+  // - One-time clean: €30/hour
+  // - Minimum 2.0 hours per visit
   useEffect(() => {
     // 1. Calculate realistic cleaning hours needed per visit based on size (m²)
     let hours = 1.0;
@@ -36,46 +49,42 @@ export default function Pricing({ lang, onPrefillQuote }: PricingProps) {
       hours = 4.0 + ((size - 300) * 0.006); // 4.6h for 400m²
     }
 
-    // Keep safe minimum hours for logistics & prep
-    hours = Math.max(1.5, Math.round(hours * 10) / 10);
-    setEstHours(hours);
+    // Keep safe minimum hours of 2.0 per visit as per business model adjustments
+    const hoursMin = Math.max(2.0, Math.round(hours * 10) / 10);
+    setEstHours(hoursMin);
 
-    // 2. Map frequency to visits per month and calculate hourly rates with bulk discount
+    // 2. Map frequency to visits per month and check rates
     let visitsPerMonth = 1;
-    let rateMin = 25;
-    let rateMax = 30;
+    let rate = 25; // default regular rate
 
     switch (frequency) {
       case 'onetime':
         visitsPerMonth = 1;
-        rateMin = 26;
-        rateMax = 32;
+        rate = 30; // €30/h for one-time
         break;
       case 'biweekly':
         visitsPerMonth = 2;
-        rateMin = 25;
-        rateMax = 29;
+        rate = 25;
         break;
       case 'weekly':
         visitsPerMonth = 4;
-        rateMin = 24;
-        rateMax = 28;
+        rate = 25;
         break;
       case 'twice_weekly':
         visitsPerMonth = 8;
-        rateMin = 23;
-        rateMax = 27;
+        rate = 25;
         break;
       case 'thrice_weekly':
         visitsPerMonth = 12;
-        rateMin = 22;
-        rateMax = 26;
+        rate = 25;
         break;
     }
 
-    // Calculate range
-    const minCalculated = Math.round(hours * rateMin * visitsPerMonth);
-    const maxCalculated = Math.round(hours * rateMax * visitsPerMonth);
+    // Max hours incorporates natural layout/complexity variations
+    const hoursMax = Math.max(2.0, Math.round(hoursMin * 1.35 * 10) / 10);
+
+    const minCalculated = Math.round(hoursMin * rate * visitsPerMonth);
+    const maxCalculated = Math.round(hoursMax * rate * visitsPerMonth);
 
     setMinPrice(minCalculated);
     setMaxPrice(maxCalculated);
@@ -154,6 +163,40 @@ export default function Pricing({ lang, onPrefillQuote }: PricingProps) {
           <p className="text-[#4A4A4A] text-sm sm:text-base max-w-2xl mx-auto leading-relaxed">
             {t.pricingSub}
           </p>
+        </motion.div>
+
+        {/* Säästötakuu / Price Match Guarantee Trust Banner (Moved higher directly under the header before the calculator) */}
+        <motion.div 
+          className="max-w-[840px] mx-auto bg-white border border-[#95C4A1]/35 rounded-2xl p-6 sm:p-8 md:p-10 text-center sm:text-left flex flex-col sm:flex-row items-center gap-6 sm:gap-8 mb-16 shadow-md focus:outline-none"
+          initial={{ opacity: 0, scale: 0.95 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          whileHover={{ scale: 1.01, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.05)" }}
+        >
+          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[#1B4332] flex items-center justify-center shrink-0 shadow-sm relative">
+            <svg 
+              viewBox="0 0 24 24" 
+              className="w-7 h-7 text-[#95C4A1]"
+              fill="currentColor"
+            >
+              <path d="M12 0L14.6 9.4L24 12L14.6 14.6L12 24L9.4 14.6L0 12L9.4 9.4L12 0Z" />
+            </svg>
+            <div className="absolute -top-1 -right-1 bg-[#95C4A1] text-[#1B4332] font-sans font-black text-[9px] w-5 h-5 rounded-full flex items-center justify-center border border-white">
+              %
+            </div>
+          </div>
+          <div className="flex-1 space-y-2">
+            <span className="inline-block text-[11px] font-extrabold uppercase tracking-widest text-[#2D6A4F] bg-[#95C4A1]/15 px-3 py-1 rounded-full">
+              {t.pricingGuaranteeLabel}
+            </span>
+            <h3 className="font-serif text-lg sm:text-xl font-bold text-[#1A1A1A] leading-snug">
+              {t.pricingGuaranteeHeadline}
+            </h3>
+            <p className="text-xs sm:text-sm text-[#4A4A4A] leading-relaxed">
+              {t.pricingGuaranteeText}
+            </p>
+          </div>
         </motion.div>
 
         {/* Large Interactive Multi-Column Estimator Card */}
@@ -288,9 +331,17 @@ export default function Pricing({ lang, onPrefillQuote }: PricingProps) {
                       </p>
                       <p className="text-[10px] text-[#7A7A7A] mt-1 leading-normal max-w-sm">
                         {lang === 'fi' 
-                          ? 'Säästät 15% ensimmäisen kuukauden tai kertatilauksen hinnoista!' 
-                          : 'Save 15% on your first month or one-time cleaning session!'}
+                          ? 'Säästät ensimmäisen siivouskumppanuuden käyntikerran hinnan kokonaan! Kertatilauksessa säästät 100%, kuukausisopimuksessa 1. siivous on maksuton.' 
+                          : 'Save the full price of the first cleaning visit! 100% off for single cleans, first session completely free for contract plans.'}
                       </p>
+                      
+                      {/* B2B Visual Urgency Tag directly implementing Priority 6 */}
+                      <div className="inline-flex items-center gap-1.5 mt-2 text-[9px] font-extrabold uppercase tracking-widest text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full select-none animate-pulse">
+                        <span>●</span> 
+                        {lang === 'fi' 
+                          ? `KAMPANJA ETU VOIMASSA VAIN ${new Date().toLocaleString('fi-FI', {month: 'long'}).toUpperCase()}N LOPPUUN!` 
+                          : `PROMO VALID ONLY UNTIL THE END OF ${new Date().toLocaleString('en-US', {month: 'long'}).toUpperCase()}!`}
+                      </div>
                     </div>
                   </div>
                   
@@ -366,8 +417,8 @@ export default function Pricing({ lang, onPrefillQuote }: PricingProps) {
                     <div className="flex items-baseline gap-2">
                       <span className="font-serif text-3xl sm:text-4xl font-extrabold text-[#F4E185] drop-shadow-sm">
                         {frequency === 'onetime' 
-                          ? `${Math.round(minPrice * 0.85)} €` 
-                          : `${Math.round(minPrice * 0.85)} - ${Math.round(maxPrice * 0.85)} €`
+                          ? '0 €' 
+                          : `${discountedMinPrice} - ${discountedMaxPrice} €`
                         }
                       </span>
                       <span className="text-[#95C4A1] text-xs sm:text-sm font-semibold select-none">
@@ -393,8 +444,8 @@ export default function Pricing({ lang, onPrefillQuote }: PricingProps) {
                 {/* Simulated estimate parameters info block */}
                 <span className="text-white/50 text-[11px] block leading-normal mb-6 pb-6 border-b border-white/10">
                   {lang === 'fi' 
-                    ? `* Arvioitu työaika ${estHours} h per siivouskerta · Suositeltu solo-yrittäjähinta.`
-                    : `* Estimated duration ~${estHours} hrs per cleaning session · Suggested lean rates.`
+                    ? `* Arvioitu työaika ${estHours} - ${hoursMax} h per siivouskerta · Laskettu selkeällä ${rate} €/h solo-hinnalla.`
+                    : `* Estimated duration ${estHours} - ${hoursMax} hrs per cleaning session · Calculated at flat ${rate} €/hr local rate.`
                   }
                 </span>
 
@@ -440,39 +491,7 @@ export default function Pricing({ lang, onPrefillQuote }: PricingProps) {
           </div>
         </motion.div>
 
-        {/* Säästötakuu / Price Match Guarantee Trust Banner (Exactly as configured by user) */}
-        <motion.div 
-          className="max-w-[840px] mx-auto bg-white border border-[#95C4A1]/35 rounded-2xl p-6 sm:p-8 md:p-10 text-center sm:text-left flex flex-col sm:flex-row items-center gap-6 sm:gap-8 mb-12 shadow-sm focus:outline-none"
-          initial={{ opacity: 0, scale: 0.95 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true, margin: "-100px" }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-          whileHover={{ scale: 1.01, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.05)" }}
-        >
-          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[#1B4332] flex items-center justify-center shrink-0 shadow-sm relative">
-            <svg 
-              viewBox="0 0 24 24" 
-              className="w-7 h-7 text-[#95C4A1]"
-              fill="currentColor"
-            >
-              <path d="M12 0L14.6 9.4L24 12L14.6 14.6L12 24L9.4 14.6L0 12L9.4 9.4L12 0Z" />
-            </svg>
-            <div className="absolute -top-1 -right-1 bg-[#95C4A1] text-[#1B4332] font-sans font-black text-[9px] w-5 h-5 rounded-full flex items-center justify-center border border-white">
-              %
-            </div>
-          </div>
-          <div className="flex-1 space-y-2">
-            <span className="inline-block text-[11px] font-extrabold uppercase tracking-widest text-[#2D6A4F] bg-[#95C4A1]/15 px-3 py-1 rounded-full">
-              {t.pricingGuaranteeLabel}
-            </span>
-            <h3 className="font-serif text-lg sm:text-xl font-bold text-[#1A1A1A] leading-snug">
-              {t.pricingGuaranteeHeadline}
-            </h3>
-            <p className="text-xs sm:text-sm text-[#4A4A4A] leading-relaxed">
-              {t.pricingGuaranteeText}
-            </p>
-          </div>
-        </motion.div>
+        {/* Säästötakuu / Price Match Guarantee Trust Banner (Has been moved higher to build trust earlier) */}
 
         {/* Pricing disclaimer text footer notes */}
         <p className="max-w-2xl mx-auto text-center text-xs text-[#7A7A7A] leading-relaxed">
