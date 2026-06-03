@@ -127,13 +127,13 @@ export default function Meista({ lang }: MeistaProps) {
                 
                 {/* Elegant dynamic avatar image mock or initial shield */}
                 <div className="w-16 h-16 rounded-full bg-[#1B4332] text-[#95C4A1] flex items-center justify-center font-serif text-xl font-bold border-2 border-[#95C4A1] shadow-sm shrink-0">
-                  KN
+                  KS
                 </div>
 
                 <div className="space-y-2">
                   <div className="text-center sm:text-left">
                     <h4 className="font-serif text-lg font-bold text-[#1A1A1A]">
-                      Kennedy Nam
+                      Kennedy Shilongo
                     </h4>
                     <p className="text-[#2D6A4F] text-xs font-bold uppercase tracking-wider">
                       {lang === 'fi' ? 'Perustaja & Operations Director' : 'Founder & Operations Director'}

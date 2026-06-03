@@ -105,7 +105,7 @@ export default function AdminPanel({ lang, setLang, onClose }: AdminPanelProps) 
 
   // USER PROFILE SETTINGS STATE
   const [profile, setProfile] = useState<AdminProfile>({
-    name: 'Kennedy Nam',
+    name: 'Kennedy Shilongo',
     email: 'kennedy.nam@gmail.com',
     role: 'Operations Director',
     phone: '+358 40 123 4567',
@@ -829,7 +829,7 @@ export default function AdminPanel({ lang, setLang, onClose }: AdminPanelProps) 
                   <span className="text-[10px] font-bold uppercase py-0.5 px-2 bg-emerald-800 text-emerald-300 rounded-full tracking-widest border border-emerald-700">ERP HUB</span>
                 </div>
                 <p className="text-[10px] text-[#95C4A1] font-mono">
-                  {lang === 'fi' ? 'Kirjautunut: Kennedy Nam (Ylläpitäjä)' : 'Session: Kennedy Nam (Director)'}
+                  {lang === 'fi' ? `Kirjautunut: ${profile.name} (Ylläpitäjä)` : `Session: ${profile.name} (Director)`}
                 </p>
               </div>
             </div>
