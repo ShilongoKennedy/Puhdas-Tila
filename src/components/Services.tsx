@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Building2, Calendar, Droplets, HeartHandshake, ArrowRight, X, Check } from 'lucide-react';
+import { Clock, Sparkles, Wand2, HeartHandshake, ArrowRight, X, Check } from 'lucide-react';
 import { Language, translations } from '../translations';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -58,7 +58,8 @@ export default function Services({ lang, onSelectService }: ServicesProps) {
     {
       id: "toimistosiivous",
       mappedServiceId: "kuukausi",
-      icon: Building2,
+      icon: Clock,
+      iconBg: "bg-[#B7E4C7] text-[#1B4332] group-hover:bg-[#95C4A1]/40",
       title: t.service1Title,
       description: t.service1Desc,
       price: t.priceFromMo,
@@ -145,7 +146,8 @@ export default function Services({ lang, onSelectService }: ServicesProps) {
     {
       id: "kertatilaus",
       mappedServiceId: "kertatilaus",
-      icon: Calendar,
+      icon: Sparkles,
+      iconBg: "bg-[#E3E8FF] text-[#3B4CA8] group-hover:bg-[#C7D1FF]",
       title: t.service2Title,
       description: t.service2Desc,
       price: t.priceFromH,
@@ -208,7 +210,8 @@ export default function Services({ lang, onSelectService }: ServicesProps) {
     {
       id: "perussiivous",
       mappedServiceId: "perus_lahto",
-      icon: Droplets,
+      icon: Wand2,
+      iconBg: "bg-[#FFF2D4] text-[#8A6316] group-hover:bg-[#FFE3AC]",
       title: t.service3Title,
       description: t.service3Desc,
       price: t.priceQuote,
@@ -290,6 +293,7 @@ export default function Services({ lang, onSelectService }: ServicesProps) {
       id: "raataloity",
       mappedServiceId: "raataloity",
       icon: HeartHandshake,
+      iconBg: "bg-[#E0F2F1] text-[#00695C] group-hover:bg-[#B2DFDB]",
       title: t.service4Title,
       description: t.service4Desc,
       price: t.priceQuote,
@@ -424,10 +428,17 @@ export default function Services({ lang, onSelectService }: ServicesProps) {
                     }
                   }}
                 >
+                  {/* Subtle, beautiful first-time custom promo tag */}
+                  {(service.id === "toimistosiivous" || service.id === "kertatilaus") && (
+                    <span className="absolute top-6 right-6 bg-emerald-50 text-emerald-800 text-[10px] font-bold px-2.5 py-1 rounded-full border border-emerald-100 select-none uppercase tracking-wider">
+                      {lang === 'fi' ? '1. siivous ILMAINEN! 🎁' : '1st day FREE! 🎁'}
+                    </span>
+                  )}
+
                   <div>
                     {/* Icon Wrapper badge */}
                     <div 
-                      className="w-14 h-14 bg-[#B7E4C7] text-[#1B4332] rounded-lg flex items-center justify-center transition-colors duration-300 group-hover:bg-[#95C4A1]"
+                      className={`w-14 h-14 rounded-lg flex items-center justify-center transition-all duration-300 ${service.iconBg}`}
                     >
                       <IconComponent className="w-8 h-8 stroke-[1.5]" aria-hidden="true" />
                     </div>
@@ -492,7 +503,7 @@ export default function Services({ lang, onSelectService }: ServicesProps) {
               {/* Header Section with Close trigger X button */}
               <div className="flex items-center justify-between px-6 py-5 sm:px-8 border-b border-[#F2F4F0] bg-[#FAFAF8]">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-[#B7E4C7] text-[#1B4332] rounded-lg flex items-center justify-center shrink-0">
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${selectedService.iconBg}`}>
                     {(() => {
                       const IconComp = selectedService.icon;
                       return <IconComp className="w-6 h-6 stroke-[1.8]" />;

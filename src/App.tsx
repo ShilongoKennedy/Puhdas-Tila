@@ -14,6 +14,7 @@ import BookingForm from './components/BookingForm';
 import Meista from './components/Meista';
 import Footer from './components/Footer';
 import AdminPanel from './components/AdminPanel';
+import LiveChat from './components/LiveChat';
 import { useIntersectionObserver } from './hooks/useIntersectionObserver';
 import { Language } from './translations';
 
@@ -130,6 +131,9 @@ export default function App() {
       {isAdminOpen && (
         <AdminPanel lang={lang} setLang={setLang} onClose={() => setIsAdminOpen(false)} />
       )}
+
+      {/* Floating Interactive Live Chat Assistant widget */}
+      <LiveChat lang={lang} />
     </div>
   );
 }

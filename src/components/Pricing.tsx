@@ -207,6 +207,34 @@ export default function Pricing({ lang, onPrefillQuote }: PricingProps) {
           viewport={{ once: true, margin: "-100px" }}
           transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
         >
+          {/* Prominent Accent-Colored Campaign Banner / Ribbon for first time customers */}
+          <div className="bg-[#95C4A1]/20 border-b border-[#E0E4DC] py-4 px-6 sm:px-10 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-[#1B4332] flex items-center justify-center shrink-0">
+                <span className="text-base select-none">🎁</span>
+              </div>
+              <div className="text-left">
+                <span className="inline-block bg-[#1B4332] text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-sm mb-1">
+                  {lang === 'fi' ? 'Kampanja' : 'Campaign'}
+                </span>
+                <p className="text-sm font-serif font-extrabold text-[#1B4332] leading-none mb-1">
+                  {lang === 'fi' ? 'UUDELLE ASIAKKAALLE: 1. PÄIVÄ ILMAINEN! 🎉' : 'FOR NEW CUSTOMERS: 1st DAY FREE! 🎉'}
+                </p>
+                <p className="text-[11px] text-[#4A4A4A] leading-tight">
+                  {lang === 'fi' 
+                    ? 'Kokeile siivouspalveluamme ilman riskiä. Ensimmäinen siivous on täysin maksuton.' 
+                    : 'Try our cleaning services risk-free. Your very first clean is completely free of charge.'}
+                </p>
+              </div>
+            </div>
+            <div className="shrink-0 flex items-center gap-1.5 bg-[#95C4A1]/40 border border-[#95C4A1]/60 px-3 py-1.5 rounded-full">
+              <span className="w-1.5 h-1.5 bg-red-600 rounded-full animate-ping shrink-0" />
+              <span className="text-[9px] font-black uppercase tracking-wider text-[#1B4332]">
+                {lang === 'fi' ? 'AKTIIVINEN KOKEEILU' : 'ACTIVE IN PREVIEW'}
+              </span>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-12">
             
             {/* Left Box (Input controls: sliders & toggles) */}
@@ -345,7 +373,6 @@ export default function Pricing({ lang, onPrefillQuote }: PricingProps) {
                     </div>
                   </div>
                   
-                  {/* Switch toggle control style */}
                   <div className="relative shrink-0 ml-2">
                     <div className={`w-10 h-6 rounded-full transition-colors duration-200 ${isDiscountApplied ? 'bg-[#1B4332]' : 'bg-gray-200'}`} />
                     <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full shadow-xs transition-transform duration-200 ${isDiscountApplied ? 'translate-x-4' : ''}`} />

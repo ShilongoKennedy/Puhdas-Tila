@@ -519,6 +519,46 @@ Tämä sähköposti on lähetetty automaattisesti puhdas-tila.com -verkkosivusto
     }
   });
 
+  // Server-side live chat agent using Gemini 3.5 Flash
+  app.post("/api/chat", async (req, res) => {
+    try {
+      const { message, history } = req.body;
+      if (!message) {
+        return res.status(400).json({ error: "Message is required" });
+      }
+
+      // Convert history to structure compatible with Gemini API
+      const contents = [];
+      if (history && Array.isArray(history)) {
+        for (const turn of history) {
+          const role = turn.role === "assistant" ? "model" : "user";
+          contents.push({
+            role: role,
+            parts: [{ text: turn.text }]
+          });
+        }
+      }
+      contents.push({
+        role: "user",
+        parts: [{ text: message }]
+      });
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: contents,
+        config: {
+          systemInstruction: "Sinä olet Puhdas Tilan (puhdas-tila.com) ystävällinen ja erittäin ammattimainen tekoäly-chat-avustaja (Puhdas Tila Chatbot).\n\nKeitä me olemme ja mitä tarjoamme:\n- Yritys: Puhdas Tila tarjoaa korkealuokkaista ja joustavaa B2B-toimistosiivousta pääkaupunkiseudulla (Helsinki, Espoo, Vantaa, Kauniainen).\n- Palvelumme: Säännöllinen toimistosiivous (sopimussiivous), Kertasiivoukset yrityksille, Perus- ja lähtösiivoukset (suursiivous, muuttosiivous) sekä räätälöidyt siivousratkaisut.\n- TÄRKEÄ ALOITUSETU (Mainostetaan ylpeydellä): Kaikille uusille asiakkaille yrityksen ENSIMMÄINEN SIIVOUSKERTA on 100% ILMAINEN! (1. siivouspäivä ilmainen / First clean is free). Ei sitoutumispakkoa, täysin riskitön B2B-kokeilu.\n- Säännöllinen Toimistosiivous: Kulkee kuukausihinnalla alkaen 100 €/kk tilan koon ja siivouskertojen mukaan.\n- Kertatilaukset ja Kertasiivous: Hinta perustuu työtunteihin, alkaen erittäin kilpailukykyisestä 25 €/tunti hinta-tasosta.\n\nSäännöt ja ohjeet keskusteluun koskien HINNOITTELUA ja TARJOUKSIA (ERITTÄIN TÄRKEÄÄ):\n1. Jos asiakas kysyy hintaa tai tarjousta:\n   - Kerro rehellisesti perushintatasomme (kertasiivoukset alkaen 25 €/tunti, kuukausisopimukset alkaen 100 €/kk).\n   - Muistuta heitä uuden asiakkaan huikeasta edusta: Ensimmäinen siivouskerta laadun testaamiseksi on täysin ILMAINEN ja 100% maksuton eikä se sido mihinkään.\n   - Ohjaa heidät käyttämään sivuston kätevää hinnanlaskinta (Hinnasto-osio) saadakseen välittömän arvion / ballpark-arvion toimiston koon mukaan.\n   - Painota selkeästi, että verkkolaskin antaa hyvän suuntaa-antavan arvion, mutta tarkan ja lopullisen siivouskohteen tarjouksen saamiseksi heidän kannattaa täyttää yhteystiedot sivun lopussa tai jättää yhteydenottopyyntö chatissa. Jokainen toimisto on yksilöllinen (esim. pintamateriaalit, lisätoiveet), joten lopullinen hinta varmistuu katselmuksella tai lyhyellä puhelulla.\n   - Kehota heitä varaamaan maksuton ja täysin sitoumukseton katselmus (walkthrough) tai jättämään soittopyyntö, jolloin voimme räätälöidä juuri heille sopivan täydellisen tarjouksen.\n\nYleiset ohjeet:\n- Ole aina äärimmäisen ystävällinen, asiantunteva, luotettava ja kohtelias. Edustat laatuun ja puhtauteen panostavaa B2B-kattojärjestelmää.\n- Vastaa tiiviisti, selkeästi ja helppolukuisesti hyödyntäen tarvittaessa ranskalaisia viivoja. Vältä pitkiä, puuduttavia tekstimassoja.\n- Puhu aina samalla kielellä kuin asiakas (esimeriksi suomeksi tai englanniksi).\n- Kehota asiakasta täyttämään tarjouspyyntölomake tai jättämään soittopyyntö, jos hänellä herää kysymyksiä."
+        }
+      });
+
+      const replyText = response.text || "Pahoittelut, en pystynyt käsittelemään pyyntöäsi juuri nyt.";
+      return res.json({ text: replyText });
+    } catch (error: any) {
+      console.error("AI live chat endpoint error:", error);
+      return res.status(500).json({ error: error.message || "An unexpected error occurred while communicating with the AI." });
+    }
+  });
+
   // Serve Vite in development, or compiled static files in production
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

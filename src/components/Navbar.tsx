@@ -117,7 +117,7 @@ export default function Navbar({ lang, setLang, logoStyle, onOpenAdmin }: Navbar
           {/* Custom Logo Brand */}
           <button
             onClick={() => handleLinkClick('hero')}
-            className="flex items-center cursor-pointer focus:outline-none"
+            className="flex items-center cursor-pointer focus:outline-none bg-transparent border-none"
             aria-label="Puhdas Tila Etusivu"
           >
             <Logo isScrolled={isScrolled} logoStyle={logoStyle} />
@@ -127,7 +127,7 @@ export default function Navbar({ lang, setLang, logoStyle, onOpenAdmin }: Navbar
           <nav className="hidden xl:flex space-x-10 items-center" aria-label="Päävalikko">
             <button
               onClick={() => handleLinkClick('palvelut')}
-              className={`nav-link text-sm font-semibold tracking-wide hover:opacity-85 cursor-pointer ${
+              className={`nav-link text-sm font-semibold tracking-wide hover:opacity-85 cursor-pointer bg-transparent border-none ${
                 activeSection === 'palvelut' ? 'active font-bold' : ''
               }`}
             >
@@ -135,7 +135,7 @@ export default function Navbar({ lang, setLang, logoStyle, onOpenAdmin }: Navbar
             </button>
             <button
               onClick={() => handleLinkClick('miten')}
-              className={`nav-link text-sm font-semibold tracking-wide hover:opacity-85 cursor-pointer ${
+              className={`nav-link text-sm font-semibold tracking-wide hover:opacity-85 cursor-pointer bg-transparent border-none ${
                 activeSection === 'miten' ? 'active font-bold' : ''
               }`}
             >
@@ -143,7 +143,7 @@ export default function Navbar({ lang, setLang, logoStyle, onOpenAdmin }: Navbar
             </button>
             <button
               onClick={() => handleLinkClick('hinnat')}
-              className={`nav-link text-sm font-semibold tracking-wide hover:opacity-85 cursor-pointer ${
+              className={`nav-link text-sm font-semibold tracking-wide hover:opacity-85 cursor-pointer bg-transparent border-none ${
                 activeSection === 'hinnat' ? 'active font-bold' : ''
               }`}
             >
@@ -151,7 +151,7 @@ export default function Navbar({ lang, setLang, logoStyle, onOpenAdmin }: Navbar
             </button>
             <button
               onClick={() => handleLinkClick('meista')}
-              className={`nav-link text-sm font-semibold tracking-wide hover:opacity-85 cursor-pointer ${
+              className={`nav-link text-sm font-semibold tracking-wide hover:opacity-85 cursor-pointer bg-transparent border-none ${
                 activeSection === 'meista' ? 'active font-bold' : ''
               }`}
             >
@@ -159,7 +159,7 @@ export default function Navbar({ lang, setLang, logoStyle, onOpenAdmin }: Navbar
             </button>
             <button
               onClick={() => handleLinkClick('varaus')}
-              className={`nav-link text-sm font-semibold tracking-wide hover:opacity-85 cursor-pointer ${
+              className={`nav-link text-sm font-semibold tracking-wide hover:opacity-85 cursor-pointer bg-transparent border-none ${
                 activeSection === 'varaus' ? 'active font-bold' : ''
               }`}
             >
@@ -181,12 +181,11 @@ export default function Navbar({ lang, setLang, logoStyle, onOpenAdmin }: Navbar
               <span>+358 40 634 5252</span>
             </a>
 
-            {/* Admin entry is removed to prevent guessing or unauthorized access */}
             {/* Elegant Pill Language Switcher */}
             <div className="flex items-center bg-black/10 dark:bg-white/10 p-0.5 rounded-full border border-current/15 gap-0.5">
               <button
                 onClick={() => setLang('fi')}
-                className={`px-3 py-1 text-xs font-bold rounded-full transition-all focus:outline-none cursor-pointer ${
+                className={`px-3 py-1 text-xs font-bold rounded-full transition-all focus:outline-none cursor-pointer border-none ${
                   lang === 'fi' 
                     ? 'bg-[#1B4332] text-white shadow-sm' 
                     : 'text-current hover:opacity-80'
@@ -196,7 +195,7 @@ export default function Navbar({ lang, setLang, logoStyle, onOpenAdmin }: Navbar
               </button>
               <button
                 onClick={() => setLang('en')}
-                className={`px-3 py-1 text-xs font-bold rounded-full transition-all focus:outline-none cursor-pointer ${
+                className={`px-3 py-1 text-xs font-bold rounded-full transition-all focus:outline-none cursor-pointer border-none ${
                   lang === 'en' 
                     ? 'bg-[#1B4332] text-white shadow-sm' 
                     : 'text-current hover:opacity-80'
@@ -208,7 +207,7 @@ export default function Navbar({ lang, setLang, logoStyle, onOpenAdmin }: Navbar
 
             <button
                onClick={() => handleLinkClick('varaus')}
-              className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-full font-semibold text-sm transition-all duration-305 focus:outline-none cursor-pointer ${
+              className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-full font-semibold text-sm transition-all duration-305 focus:outline-none cursor-pointer border-none ${
                 isScrolled
                   ? 'bg-[#1B4332] text-white hover:bg-[#2D6A4F] hover:shadow-md'
                   : 'bg-white text-[#1B4332] hover:bg-opacity-90 hover:scale-[1.03]'
@@ -224,7 +223,7 @@ export default function Navbar({ lang, setLang, logoStyle, onOpenAdmin }: Navbar
             {/* Fast simple toggle language trigger label */}
             <button
               onClick={toggleLanguage}
-              className={`px-3 py-1 text-xs font-black rounded-lg border focus:outline-none flex items-center gap-1 cursor-pointer ${
+              className={`px-3 py-1 text-xs font-black rounded-lg border focus:outline-none flex items-center gap-1 cursor-pointer bg-transparent ${
                 isScrolled ? 'border-[#1B4332] text-[#1B4332]' : 'border-white text-white'
               }`}
               aria-label="Vaihda kieli / Toggle language"
@@ -235,7 +234,7 @@ export default function Navbar({ lang, setLang, logoStyle, onOpenAdmin }: Navbar
 
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="p-1 focus:outline-none cursor-pointer"
+              className="p-1 focus:outline-none cursor-pointer bg-transparent border-none"
               aria-expanded={isMobileMenuOpen}
               aria-label="Avaa valikko"
             >
@@ -257,35 +256,34 @@ export default function Navbar({ lang, setLang, logoStyle, onOpenAdmin }: Navbar
           <div className="px-5 py-4 space-y-3 flex flex-col items-stretch">
             <button
               onClick={() => handleLinkClick('palvelut')}
-              className="text-left py-2 text-base font-semibold px-2 rounded-md hover:bg-[#F2F4F0] focus:outline-none"
+              className="text-left py-2 text-base font-semibold px-2 rounded-md hover:bg-[#F2F4F0] focus:outline-none bg-transparent border-none"
             >
               {t.navServices}
             </button>
             <button
               onClick={() => handleLinkClick('miten')}
-              className="text-left py-2 text-base font-semibold px-2 rounded-md hover:bg-[#F2F4F0] focus:outline-none"
+              className="text-left py-2 text-base font-semibold px-2 rounded-md hover:bg-[#F2F4F0] focus:outline-none bg-transparent border-none"
             >
               {t.navProcess}
             </button>
             <button
               onClick={() => handleLinkClick('hinnat')}
-              className="text-left py-2 text-base font-semibold px-2 rounded-md hover:bg-[#F2F4F0] focus:outline-none"
+              className="text-left py-2 text-base font-semibold px-2 rounded-md hover:bg-[#F2F4F0] focus:outline-none bg-transparent border-none"
             >
               {t.navPricing}
             </button>
             <button
               onClick={() => handleLinkClick('meista')}
-              className="text-left py-2 text-base font-semibold px-2 rounded-md hover:bg-[#F2F4F0] focus:outline-none"
+              className="text-left py-2 text-base font-semibold px-2 rounded-md hover:bg-[#F2F4F0] focus:outline-none bg-transparent border-none"
             >
               {t.navAbout}
             </button>
             <button
               onClick={() => handleLinkClick('varaus')}
-              className="text-left py-2 text-base font-semibold px-2 rounded-md hover:bg-[#F2F4F0] focus:outline-none"
+              className="text-left py-2 text-base font-semibold px-2 rounded-md hover:bg-[#F2F4F0] focus:outline-none bg-transparent border-none"
             >
               {t.navContact}
             </button>
-            {/* Mobile menu admin link is removed for security purposes */}
             <a 
               href="tel:+358406345252" 
               className="w-full flex items-center justify-center gap-2 py-2.5 border border-[#1B4332] text-[#1B4332] font-semibold rounded-full hover:bg-slate-50 transition-colors focus:outline-none cursor-pointer text-sm"
@@ -295,7 +293,7 @@ export default function Navbar({ lang, setLang, logoStyle, onOpenAdmin }: Navbar
             </a>
             <button
               onClick={() => handleLinkClick('varaus')}
-              className="w-full text-center py-3 bg-[#1B4332] text-white font-bold rounded-full hover:bg-[#2D6A4F] transition-colors focus:outline-none cursor-pointer"
+              className="w-full text-center py-3 bg-[#1B4332] text-white font-bold rounded-full hover:bg-[#2D6A4F] transition-colors focus:outline-none cursor-pointer border-none"
             >
               {t.navBtnBook} →
             </button>

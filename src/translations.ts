@@ -42,8 +42,9 @@ export const translations = {
     service4Cta: 'Ota yhteyttä',
 
     priceFromMo: 'Alkaen 100 €/kk',
-    priceFromH: 'Alkaen 60 €/kerta',
+    priceFromH: 'Alkaen 25 €/tunti',
     priceQuote: 'Tarjouspyyntö',
+    firstTimePromo: 'Uusille asiakkaille 1. siivouspäivä täysin maksuton! 🎁',
 
     processBadge: 'PROSESSI',
     processTitle: 'Näin se toimii',
@@ -224,8 +225,9 @@ export const translations = {
     service4Cta: 'Get in touch',
 
     priceFromMo: 'From 100 €/mo',
-    priceFromH: 'From 60 €/visit',
+    priceFromH: 'From 25 €/hour',
     priceQuote: 'Request quote',
+    firstTimePromo: '1st clean is 100% FREE for new partners! 🎁',
 
     processBadge: 'PROCESS',
     processTitle: 'How it works',
