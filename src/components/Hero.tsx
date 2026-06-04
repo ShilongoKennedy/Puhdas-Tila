@@ -1,4 +1,4 @@
-import { ArrowRight, ChevronDown, Sparkles, Check } from 'lucide-react';
+import { ArrowRight, ChevronDown, Sparkles, Check, Star } from 'lucide-react';
 import { Language, translations } from '../translations';
 import heroImage from '../assets/images/hero_cleaning_1780177194159.png';
 import { motion, AnimatePresence } from 'motion/react';
@@ -114,7 +114,7 @@ export default function Hero({ lang }: HeroProps) {
           transition={{ duration: 0.6, delay: 0.15 }}
         >
           <span className="w-1.5 h-1.5 bg-[#95C4A1] rounded-full animate-ping shrink-0" />
-          <span>Helsinki • Espoo • Vantaa</span>
+          <span>Espoo • Kauniainen • Kirkkonummi</span>
         </motion.div>
 
         {/* Masterful Bold Headline - Large, elegant, centered Serif */}
@@ -218,6 +218,15 @@ export default function Hero({ lang }: HeroProps) {
             <Check className="w-4 h-4 text-[#95C4A1] shrink-0" strokeWidth={3} />
             <span>{t.heroBadgeContracts.replace(/^✓\s*/, '')}</span>
           </span>
+          <span className="hidden md:inline text-white/25">|</span>
+          <a
+            href="https://share.google/eCXwFCDZ09xq98zIC"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 font-bold text-[#95C4A1] hover:text-[#B7E4C7] transition-colors duration-300 cursor-pointer drop-shadow-sm"
+          >
+            <span>{lang === 'fi' ? 'Google Business -profiili ↗' : 'Google Business Profile ↗'}</span>
+          </a>
         </motion.div>
 
       </div>

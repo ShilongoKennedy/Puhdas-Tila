@@ -82,8 +82,8 @@ export default function LiveChat({ lang }: LiveChatProps) {
   // Set initial welcome greeting matching language preference
   useEffect(() => {
     const welcomeText = lang === 'fi' 
-      ? 'Hei! Tervetuloa Puhdas Tilan asiakaspalveluun. 👋 Toimistomme siivoushinnat alkavat 25 €/h. Kaikille uusille pääkaupunkiseudun yritysasiakkaille ensimmäinen siivouskerta on täysin maksuton! Miten voin auttaa sinua tänään?'
-      : 'Hello there! Welcome to Puhdas Tila customer support. 👋 Our office cleaning rates start at 25 €/h. All new corporate clients in the capital area receive their very first cleaning session 100% FREE! How can I assist you today?';
+      ? 'Hei! Tervetuloa Puhdas Tilan lämpimään asiakaspalveluun. 👋 Meillä jokainen siivouskohde on täysin yksilöllinen, ja tarjoamme aina ihmiseltä ihmiselle räätälöityä, joustavaa henkilökohtaista palvelua kiinteiden automaattihintojen sijaan. Kaikille uusille pääkaupunkiseudun yritysasiakkaille ensimmäinen siivouskerta laadun testaamiseksi on täysin maksuton! Miten voin auttaa sinua tänään?'
+      : 'Hello there! Welcome to Puhdas Tila customer support. 👋 We believe in human-to-human, customized personal service rather than cold electronic numbers. Every workspace is unique, so we tailor our cleaning programs individually to your exact needs. All new corporate clients in the capital area receive their very first cleaning session 100% FREE! How can I assist you today?';
     
     setMessages([
       {
@@ -173,9 +173,9 @@ export default function LiveChat({ lang }: LiveChatProps) {
       setTimeout(() => {
         let fallbackReply = '';
         if (lang === 'fi') {
-          fallbackReply = 'Hei! Toimistosiivouksemme alkaa laadukkaasti säännöllisessä siivouksessa **100 € / kk** ja kertatöissä **25 € / tunti**. Ensimmäinen kokeilukerta on täysin MAKSUTON (1. päivä ilmainen) ilman sitoutumispakkoa! \n\nVoit käyttää sivumme **Hinnasto**-laskuriä heti alapuolella suuntaa-antavan arvion saamiseksi. Koska jokainen tila eroaa pintamateriaaleiltaan ja toiveiltaan, saat **100 % tarkan ja sitovan tarjouksen** parhaiten ottamalla meihin yhteyttä tai varaamalla ilmaisen pikakatselmuksen (walkthrough) sivun tarjouslomakkeella! Ota yhteyttä, niin teemme teille räätälöidyn loistavan tarjouksen. ✨';
+          fallbackReply = 'Hei! Uskomme siihen, että jokainen liiketila on täysin uniikki, joten vältämme kiinteitä tai automaattisia yleishintoja. Meillä maksat vain palveluista, joita yrityksesi aidosti tarvitsee — tämä takaa reiluimman ja parhaan lopputuloksen ilman piilokuluja. Ensimmäinen siivouskerta laadun testaamiseksi on täysin MAKSUTON eikä se sido teitä mihinkään! \n\nKoska jokainen tila eroaa pintamateriaaleiltaan, huonejaoltaan ja toiveiltaan, **tarkin ja kilpailukykyisin hinta** muodostuu aina asiantuntijamme kanssa käytävällä lyhyellä puhelinkeskustelulla tai maksuttomalla katselmuksella paikan päällä. Jätä sähköpostiosoitteesi tai puhelinnumerosi sivun loppupään lomakkeelle, niin olemme sinuun yhteydessä hyvin nopeasti räätälöidyn tarjouksen tiimoilta! ✨';
         } else {
-          fallbackReply = 'Hello! Our commercial office cleaning program starts at **100 € / month** for regular subscriptions and **25 € / hour** for one-off sessions. Plus, your very first clean is 100% FREE with zero commitment! \n\nYou can compute an instant ballpark estimate using our dynamic **Pricing** estimator tool further down the page. Since every workspace is unique (surfaces, frequency, specific needs), the most **accurate and final quote** requires a quick walkthrough or short touch-base. Simply fill out the quick request form on the page to secure your guaranteed final proposal! ✨';
+          fallbackReply = 'Hello! We believe every commercial space is truly unique, which is why we avoid using rigid, automated, or standard general rates. With us, you only pay for services your business actually needs — ensuring the most fair and customized outcome with zero hidden fees. Plus, your first cleaning session is completely FREE so you can test our quality with zero commitment! \n\nSince every facility differs in surfaces, layout, and specific workflows, the most **accurate and competitive price** is always determined through a brief, free physical site walkthrough or a quick phone touch-base with our specialist. Simply leave your contact details in our form below, and we will get back to you shortly to customize a proposal specifically for you! ✨';
         }
 
         setMessages(prev => [...prev, {
@@ -208,31 +208,9 @@ export default function LiveChat({ lang }: LiveChatProps) {
 
   return (
     <>
-      {/* Floating Action Button with breathing ring notification wrapper */}
+      {/* Floating Action Button with breathing ring wrapper */}
       <div className="fixed bottom-6 right-6 z-[9990] flex flex-col items-end">
         
-        {/* Entrance Prompt tooltip above the button */}
-        {showNotificationBadge && !isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: 15, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ delay: 2, duration: 0.4 }}
-            className="mb-3 bg-white border border-[#E0E4DC] text-[#1B4332] text-xs font-bold py-2.5 px-4 rounded-xl shadow-[0_10px_25px_-5px_rgba(27,67,50,0.12)] flex items-center gap-2 max-w-xs text-right cursor-pointer"
-            onClick={() => { setIsOpen(true); setShowNotificationBadge(false); }}
-          >
-            <Sparkles className="w-3.5 h-3.5 text-[#95C4A1] fill-[#95C4A1]/20 animate-pulse" />
-            <span>
-              {lang === 'fi' ? 'Kysy 1. ilmaispäivästä tästä! 🎁' : 'Claim your 1st Free Clean! 🎁'}
-            </span>
-            <button 
-              onClick={(e) => { e.stopPropagation(); setShowNotificationBadge(false); }}
-              className="text-gray-400 hover:text-gray-600 focus:outline-none ml-1 cursor-pointer"
-            >
-              <X className="w-3 h-3" />
-            </button>
-          </motion.div>
-        )}
-
         <motion.button
           onClick={() => {
             setIsOpen(!isOpen);
@@ -248,13 +226,6 @@ export default function LiveChat({ lang }: LiveChatProps) {
           {/* Subtle breathing animation ring around the button */}
           {!isOpen && (
             <span className="absolute inset-0 rounded-full border-2 border-[#1B4332]/40 animate-ping opacity-60 scale-105 pointer-events-none" />
-          )}
-
-          {/* Quick counter badge */}
-          {showNotificationBadge && !isOpen && (
-            <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#F4E185] border border-[#1B4332] text-[#1B4332] text-[9px] font-black rounded-full flex items-center justify-center animate-bounce">
-              1
-            </span>
           )}
 
           <AnimatePresence mode="wait">
@@ -407,10 +378,10 @@ export default function LiveChat({ lang }: LiveChatProps) {
                       : 'Provide your phone number in our quick contact estimator below and our specialist will dial you within the hour.'}
                   </p>
                   <button 
-                    onClick={() => handleFormScrollOption('yhteys')}
+                    onClick={() => handleFormScrollOption('varaus')}
                     className="w-full py-1.5 bg-[#1B4332] hover:bg-[#255D45] text-white text-[10px] font-bold rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer focus:outline-none"
                   >
-                    <span>{lang === 'fi' ? 'Täytä yhteystiedot' : 'Open Pricing Form'}</span>
+                    <span>{lang === 'fi' ? 'Täytä yhteystiedot' : 'Book Consultation'}</span>
                     <ArrowUpRight className="w-3 h-3" />
                   </button>
                 </motion.div>

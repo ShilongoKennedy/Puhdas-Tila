@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Menu, X, ArrowRight, Languages, Lock, Phone } from 'lucide-react';
 import { Language, translations } from '../translations';
 import Logo from './Logo';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface NavbarProps {
   lang: Language;
@@ -16,6 +17,18 @@ export default function Navbar({ lang, setLang, logoStyle, onOpenAdmin }: Navbar
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const t = translations[lang];
+
+  // Lock body scroll when mobile slider is open
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isMobileMenuOpen]);
 
   // Scroll listener to toggle white/solid background after 80px scroll
   useEffect(() => {
@@ -168,7 +181,7 @@ export default function Navbar({ lang, setLang, logoStyle, onOpenAdmin }: Navbar
           </nav>
 
           {/* Nav Right Action & Selector Button Area */}
-          <div className="hidden md:flex items-center gap-6">
+          <div className="hidden xl:flex items-center gap-6">
             <a 
               href="tel:+358406345252" 
               className={`flex items-center gap-1.5 font-sans font-bold text-sm transition-all focus:outline-none ${
@@ -219,7 +232,7 @@ export default function Navbar({ lang, setLang, logoStyle, onOpenAdmin }: Navbar
           </div>
 
           {/* Mobile UI Buttons (Hamb + Minified language switch representation) */}
-          <div className="md:hidden flex items-center gap-3">
+          <div className="xl:hidden flex items-center gap-3">
             {/* Fast simple toggle language trigger label */}
             <button
               onClick={toggleLanguage}
@@ -233,73 +246,139 @@ export default function Navbar({ lang, setLang, logoStyle, onOpenAdmin }: Navbar
             </button>
 
             <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="p-1 focus:outline-none cursor-pointer bg-transparent border-none"
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="p-1.5 focus:outline-none cursor-pointer bg-transparent border-none"
               aria-expanded={isMobileMenuOpen}
               aria-label="Avaa valikko"
             >
-              {isMobileMenuOpen ? (
-                <X className="w-6 h-6 text-[#95C4A1]" />
-              ) : (
-                <Menu className={`w-6 h-6 ${isScrolled ? 'text-[#1B4332]' : 'text-white'}`} />
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Mobile Dropdown Menu showing clean translation layout map */}
-        <div
-          className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out bg-white text-[#1A1A1A] max-h-0 ${
-            isMobileMenuOpen ? 'max-h-[420px] border-b border-[#E0E4DC]' : ''
-          }`}
-        >
-          <div className="px-5 py-4 space-y-3 flex flex-col items-stretch">
-            <button
-              onClick={() => handleLinkClick('palvelut')}
-              className="text-left py-2 text-base font-semibold px-2 rounded-md hover:bg-[#F2F4F0] focus:outline-none bg-transparent border-none"
-            >
-              {t.navServices}
-            </button>
-            <button
-              onClick={() => handleLinkClick('miten')}
-              className="text-left py-2 text-base font-semibold px-2 rounded-md hover:bg-[#F2F4F0] focus:outline-none bg-transparent border-none"
-            >
-              {t.navProcess}
-            </button>
-            <button
-              onClick={() => handleLinkClick('hinnat')}
-              className="text-left py-2 text-base font-semibold px-2 rounded-md hover:bg-[#F2F4F0] focus:outline-none bg-transparent border-none"
-            >
-              {t.navPricing}
-            </button>
-            <button
-              onClick={() => handleLinkClick('meista')}
-              className="text-left py-2 text-base font-semibold px-2 rounded-md hover:bg-[#F2F4F0] focus:outline-none bg-transparent border-none"
-            >
-              {t.navAbout}
-            </button>
-            <button
-              onClick={() => handleLinkClick('varaus')}
-              className="text-left py-2 text-base font-semibold px-2 rounded-md hover:bg-[#F2F4F0] focus:outline-none bg-transparent border-none"
-            >
-              {t.navContact}
-            </button>
-            <a 
-              href="tel:+358406345252" 
-              className="w-full flex items-center justify-center gap-2 py-2.5 border border-[#1B4332] text-[#1B4332] font-semibold rounded-full hover:bg-slate-50 transition-colors focus:outline-none cursor-pointer text-sm"
-            >
-              <Phone className="w-4 h-4 text-[#95C4A1]" />
-              <span>+358 40 634 5252</span>
-            </a>
-            <button
-              onClick={() => handleLinkClick('varaus')}
-              className="w-full text-center py-3 bg-[#1B4332] text-white font-bold rounded-full hover:bg-[#2D6A4F] transition-colors focus:outline-none cursor-pointer border-none"
-            >
-              {t.navBtnBook} →
+              <Menu className={`w-6 h-6 ${isScrolled ? 'text-[#1B4332]' : 'text-white'}`} />
             </button>
           </div>
         </div>
       </header>
+
+      {/* Smooth Slide-In Drawer with Backdrop Overlay under AnimatePresence */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <>
+            {/* Overlay backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="fixed inset-0 z-[10000] bg-black/50 backdrop-blur-md xl:hidden"
+            />
+
+            {/* Slider panel cabinet */}
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 26, stiffness: 210 }}
+              className="fixed top-0 right-0 bottom-0 z-[10001] w-full max-w-[340px] h-screen h-[100dvh] bg-white shadow-2xl flex flex-col xl:hidden text-[#1A1A1A] overflow-hidden"
+            >
+              {/* Drawer Header with Logo and Close trigger */}
+              <div className="p-5 border-b border-[#E0E4DC] flex items-center justify-between bg-[#FAFAF8] shrink-0">
+                <Logo isScrolled={true} logoStyle={logoStyle} />
+                <button
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200/80 flex items-center justify-center text-[#1B4332] transition-colors focus:outline-none cursor-pointer border-none"
+                  aria-label="Sulje valikko"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Staggered transition of Navigation routes */}
+              <nav className="flex-1 overflow-y-auto px-5 py-6 space-y-1 bg-white" aria-label="Mobiilihaku ja navigointi">
+                {[
+                  { id: 'palvelut', label: t.navServices },
+                  { id: 'miten', label: t.navProcess },
+                  { id: 'hinnat', label: t.navPricing },
+                  { id: 'meista', label: t.navAbout },
+                  { id: 'varaus', label: t.navContact },
+                ].map((item, index) => {
+                  const isActive = activeSection === item.id;
+                  return (
+                    <motion.button
+                      initial={{ opacity: 0, x: 15 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.04 }}
+                      key={item.id}
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        // Slight timeout to let slider animate away nicely before scrolling
+                        setTimeout(() => handleLinkClick(item.id), 280);
+                      }}
+                      className={`w-full text-left py-3.5 px-4 text-sm font-semibold rounded-xl transition-all flex items-center justify-between group focus:outline-none bg-transparent border-none ${
+                        isActive 
+                          ? 'bg-[#95C4A1]/15 text-[#1B4332] font-extrabold' 
+                          : 'hover:bg-[#F2F4F0] text-gray-700'
+                      }`}
+                    >
+                      <span className="tracking-wide">{item.label}</span>
+                      <ArrowRight className={`w-4 h-4 transition-all ${
+                        isActive 
+                          ? 'opacity-100 translate-x-0 text-[#1B4332]' 
+                          : 'opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 text-gray-400'
+                      }`} />
+                    </motion.button>
+                  );
+                })}
+              </nav>
+
+              {/* Bottom high-trust communication info & direct action items */}
+              <div className="p-5 border-t border-[#E0E4DC] bg-[#FAFAF8] space-y-3.5 shrink-0">
+                <div className="flex items-center justify-between text-xs text-gray-400 font-bold px-1 uppercase tracking-wider">
+                  <span>{lang === 'fi' ? 'Vaihda kieli' : 'Settings'}</span>
+                  <div className="flex bg-gray-200/60 p-0.5 rounded-lg border border-gray-300/30 gap-0.5">
+                    <button
+                      onClick={() => { setLang('fi'); setIsMobileMenuOpen(false); }}
+                      className={`px-3 py-1 text-[10px] font-black rounded-md transition-all focus:outline-none cursor-pointer border-none ${
+                        lang === 'fi' 
+                          ? 'bg-[#1B4332] text-white shadow-2xs' 
+                          : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      FI
+                    </button>
+                    <button
+                      onClick={() => { setLang('en'); setIsMobileMenuOpen(false); }}
+                      className={`px-3 py-1 text-[10px] font-black rounded-md transition-all focus:outline-none cursor-pointer border-none ${
+                        lang === 'en' 
+                          ? 'bg-[#1B4332] text-white shadow-2xs' 
+                          : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      EN
+                    </button>
+                  </div>
+                </div>
+
+                <a 
+                  href="tel:+358406345252" 
+                  className="w-full flex items-center justify-center gap-2 py-3 border border-[#E0E4DC] bg-white text-[#1B4332] font-bold rounded-xl hover:bg-slate-50 transition-all focus:outline-none cursor-pointer text-sm shadow-3xs"
+                >
+                  <Phone className="w-4 h-4 text-[#95C4A1]" />
+                  <span>+358 40 634 5252</span>
+                </a>
+
+                <button
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    setTimeout(() => handleLinkClick('varaus'), 280);
+                  }}
+                  className="w-full inline-flex items-center justify-center gap-2 py-3.5 bg-[#1B4332] text-white text-sm font-extrabold rounded-xl hover:bg-[#2D6A4F] transition-all duration-300 focus:outline-none cursor-pointer border-none shadow-md"
+                >
+                  <span>{t.navBtnBook}</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </>
   );
 }

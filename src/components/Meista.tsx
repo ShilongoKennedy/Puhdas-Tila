@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Shield, FileText, MapPin, RefreshCw, ChevronDown, ChevronUp, HelpCircle } from 'lucide-react';
+import { Shield, FileText, MapPin, RefreshCw, ChevronDown, ChevronUp, HelpCircle, Star } from 'lucide-react';
 import { Language, translations } from '../translations';
 import { motion } from 'motion/react';
 
@@ -119,41 +119,6 @@ export default function Meista({ lang }: MeistaProps) {
                 {t.aboutPara3}
               </p>
             </div>
-
-            {/* Premium, High-Trust Founder Block directly implementing Priority 5 */}
-            <div className="mt-10 p-6 sm:p-8 bg-white border border-[#E0E4DC] rounded-2.5xl shadow-xs relative overflow-hidden text-left">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-[#B7E4C7]/15 rounded-full blur-2xl pointer-events-none" />
-              <div className="relative z-10 flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
-                
-                {/* Elegant dynamic avatar image mock or initial shield */}
-                <div className="w-16 h-16 rounded-full bg-[#1B4332] text-[#95C4A1] flex items-center justify-center font-serif text-xl font-bold border-2 border-[#95C4A1] shadow-sm shrink-0">
-                  KS
-                </div>
-
-                <div className="space-y-2">
-                  <div className="text-center sm:text-left">
-                    <h4 className="font-serif text-lg font-bold text-[#1A1A1A]">
-                      Kennedy Shilongo
-                    </h4>
-                    <p className="text-[#2D6A4F] text-xs font-bold uppercase tracking-wider">
-                      {lang === 'fi' ? 'Perustaja & Operations Director' : 'Founder & Operations Director'}
-                    </p>
-                  </div>
-                  
-                  <p className="text-xs sm:text-sm text-[#4A4A4A] italic leading-relaxed text-center sm:text-left">
-                    {lang === 'fi' 
-                      ? '”Perustimme Puhdas Tilan huomattuamme, miten vaikeaa pääkaupunkiseudun yrityksille on löytää luotettava ja joustava siivouskumppani ilman monivuotisia sitovia paperisopimuksia. Meillä laadun takaa tuttu, vakituinen tekijä ja rehti asenne. Jos tarvitset apua, tavoitat meidät suoraan ja nopeasti.”'
-                      : '“We founded Puhdas Tila when we noticed how difficult it is for Capital Region businesses to find a reliable, consistent cleaning partner without rigid multi-year commitments. We believe in high standards, familiar personnel, and straightforward communication.”'}
-                  </p>
-                  
-                  <div className="pt-2 flex flex-wrap justify-center sm:justify-start gap-x-4 gap-y-1 text-xs text-[#5C6F63]">
-                    <span className="font-semibold">✉ info@puhdas-tila.com</span>
-                    <span className="font-semibold">📞 +358 40 634 5252</span>
-                  </div>
-                </div>
-
-              </div>
-            </div>
           </motion.div>
 
           {/* Right Column (Trust Rows Stack) */}
@@ -194,6 +159,38 @@ export default function Meista({ lang }: MeistaProps) {
           </motion.div>
 
         </div>
+
+
+        {/* Google Business Profile Trust Badge Banner */}
+        <motion.div
+          className="max-w-[840px] mx-auto bg-gradient-to-br from-[#1B4332] to-[#0D2B1E] text-white border border-[#2D6A4F]/30 rounded-3xl p-6 sm:p-8 shadow-md mb-12 text-left relative overflow-hidden"
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+        >
+          <div className="absolute top-0 right-0 w-48 h-48 bg-[#95C4A1]/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6">
+            <div className="space-y-2 text-center sm:text-left">
+              <h3 className="font-serif text-xl sm:text-2xl font-bold tracking-tight">
+                {lang === 'fi' ? 'Löydät meidät nyt Googlessa!' : "We're Now on Google!"}
+              </h3>
+              <p className="text-xs sm:text-sm text-white/85 max-w-lg leading-relaxed">
+                {lang === 'fi' 
+                  ? 'Puhdas Tilan virallinen Google Business -profiili on avattu. Tule mukaan tukemaan kotimaista palvelua ja jätä meille palautetta ensimmäisten joukossa!'
+                  : 'Puhdas Tila is now verified on Google Business! Support a high-trust local service by visiting our listing or leaving your feedback.'}
+              </p>
+            </div>
+            <a
+              href="https://share.google/eCXwFCDZ09xq98zIC"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-[#95C4A1] hover:bg-[#B7E4C7] text-[#0D2B1E] font-extrabold px-6 py-3.5 rounded-xl transition-all duration-300 text-sm focus:outline-none shrink-0 shadow-lg hover:scale-[1.02]"
+            >
+              <span>{lang === 'fi' ? 'Katso Google-profiili ↗' : 'View Google Profile ↗'}</span>
+            </a>
+          </div>
+        </motion.div>
 
 
         {/* Elegant Accordion B2B Frequently Asked Questions Area */}

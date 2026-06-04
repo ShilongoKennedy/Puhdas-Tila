@@ -343,6 +343,21 @@ export default function BookingForm({ lang, prefilledService = '', prefilledSize
               {!isSubmitted ? (
                 <form onSubmit={handleSubmit} className="space-y-6" noValidate>
                   
+                  {/* Human Consultation Focus Ribbon */}
+                  <div className="p-4 bg-emerald-50/70 border border-emerald-200/80 rounded-xl flex gap-3 text-left">
+                    <span className="text-xl shrink-0 select-none">🤝</span>
+                    <div className="text-xs">
+                      <p className="font-extrabold text-[#1B4332] mb-0.5">
+                        {lang === 'fi' ? 'Ihmiseltä ihmiselle -hinnoittelu' : 'Custom Human-to-Human Pricing'}
+                      </p>
+                      <p className="text-[#3A3A3A] leading-normal font-medium">
+                        {lang === 'fi' 
+                          ? 'Koska jokainen liiketila poikkeaa vaatimuksiltaan, asiantuntijamme muodostaa jokaisen tarjouksen henkilökohtaisesti kotiuttamalla parhaat säästöt. Saat meiltä reilun ja tarkan tarjouksen ilman robotteja.' 
+                          : 'Since every commercial environment has distinct needs, our specialist reviews each quote manually to unlock the deepest savings. No automated guesses, just honest human care.'}
+                      </p>
+                    </div>
+                  </div>
+                  
                   {/* Field 1: Name & Company */}
                   <div>
                     <label htmlFor="contactName" className="block text-sm font-bold text-[#1A1A1A] mb-1.5">
@@ -467,111 +482,22 @@ export default function BookingForm({ lang, prefilledService = '', prefilledSize
                     {t.successVerify}
                   </p>
 
-                  {/* Sandbox / Developer Notice block if email delivery bypassed */}
-                  {emailStatus.provider === 'none' && (
-                    <div className="my-6 p-4 bg-amber-50 border border-amber-200/80 rounded-xl text-left text-amber-900 text-xs leading-relaxed max-w-md shadow-xs">
-                      <div className="flex items-start gap-2.5">
-                        <span className="text-sm shrink-0">💡</span>
-                        <div>
-                          <p className="font-bold mb-0.5 text-amber-950">
-                            Kehittäjän huomautus (Sähköposti ohitettiin)
-                          </p>
-                          <p className="opacity-90 text-[11px] leading-normal">
-                            Tiedot tallennettiin paikallisesti järjestelmän hallintapaneeliin, mutta sähköpostia ei lähetetty, koska palvelun sähköpostitunnuksia (<strong>RESEND_API_KEY</strong> tai <strong>VITE_WEB3FORMS_ACCESS_KEY</strong>) ei ole määritetty tekoälystudion Settings -&gt; Secrets -valikossa.
-                          </p>
-                          <p className="mt-2 text-[10px] opacity-75 font-mono leading-normal">
-                            Developer Note: To test actual email delivery in your own inbox, click the <strong>Settings</strong> gear icon on the top right, open <strong>Secrets (Environment Variables)</strong>, and configure a valid <strong>RESEND_API_KEY</strong>.
-                          </p>
-                        </div>
+                  {/* Clean, professional customer-facing feedback card with zero developer jargon or sandbox details */}
+                  <div className="my-6 p-4 sm:p-5 bg-emerald-50 border border-emerald-200 rounded-xl text-left text-emerald-950 leading-relaxed max-w-md shadow-xs">
+                    <div className="flex items-start gap-3">
+                      <span className="text-emerald-700 bg-emerald-100/80 w-6 h-6 rounded-full flex items-center justify-center shrink-0 font-bold text-sm">✓</span>
+                      <div>
+                        <p className="font-extrabold text-sm text-emerald-900">
+                          {lang === 'fi' ? 'Tarjouspyyntö lähetetty onnistuneesti!' : 'Quote Request Sent Successfully!'}
+                        </p>
+                        <p className="text-[11px] sm:text-xs text-emerald-800 leading-normal mt-1.5">
+                          {lang === 'fi'
+                            ? 'Kiitos mielenkiinnostasi. Olemme vastaanottaneet siivouskohteen tiedot järjestelmäämme. Asiantuntijamme käy ne läpi ja ottaa sinuun yhteyttä tarjouksen tiimoilta hyvin pian!'
+                            : 'Thank you for your interest. We have received your cleaning project details in our system. Our specialist will review them and reach out with your personalized proposal very shortly!'}
+                        </p>
                       </div>
                     </div>
-                  )}
-
-                  {/* Success banner if Resend API delivered successfully */}
-                  {emailStatus.provider === 'resend' && emailStatus.sent && (
-                    <div className="my-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-left text-emerald-950 text-xs leading-relaxed max-w-md shadow-xs">
-                       <div className="flex items-start gap-2.5">
-                        <span className="text-emerald-600 font-bold shrink-0">✓</span>
-                        <div>
-                          <p className="font-bold text-emerald-900">Sähköposti lähetetty onnistuneesti!</p>
-                          <p className="opacity-95 text-[11px] mt-0.5 leading-normal">
-                            Varaustiedot välitettiin reaaliajassa sähköpostitse Resend API-integraation kautta ylläpitäjälle.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Sandbox Informational Explainer if some deliveries were skipped under a Sandbox Key */}
-                  {emailStatus.provider === 'resend' && emailStatus.sent && emailStatus.partialFailure && (
-                    <div className="my-4 p-4 bg-amber-50 border border-amber-200 rounded-xl text-left text-amber-950 text-xs leading-relaxed max-w-md shadow-xs">
-                      <div className="flex items-start gap-2.5">
-                        <span className="text-amber-600 font-bold shrink-0 text-sm">ℹ</span>
-                        <div>
-                          <p className="font-bold text-amber-900">
-                            Resend Sandbox-huomautus (Lähetys onnistui osittain)
-                          </p>
-                          <p className="opacity-95 text-[11px] mt-0.5 leading-normal">
-                            Sähköposti toimitettiin onnistuneesti ylläpitäjän sähköpostiin <strong>(info@puhdas-tila.com)</strong>! <br /><br />
-                            Koska käytössä on ilmainen Resend-kokeilutili (Sandbox), automaattinen vahvistusviesti asiakkaan omaan sähköpostiin (<code>{formData.email}</code>) ohitettiin, sillä Resend sallii sandboxissa viestien lähetyksen vain vahvistetulle omistajalle.
-                          </p>
-                          <p className="mt-2.5 text-[10px] opacity-80 font-mono leading-normal border-t border-amber-200/50 pt-2">
-                            <strong>Ratkaisu vapaaseen lähetykseen:</strong> Vahvista oma verkkotunnuksesi (domain) Resend-hallintapaneelissasi, niin automaattiset vahvistusviestit lähetetään myös asiakkaille!
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Error banner if Resend API failed */}
-                  {emailStatus.provider === 'resend' && !emailStatus.sent && emailStatus.error && (
-                    <div className="my-6 p-4 bg-rose-50 border border-rose-200 rounded-xl text-left text-rose-950 text-xs leading-relaxed max-w-md shadow-xs">
-                      <div className="flex items-start gap-2.5">
-                        <span className="text-rose-600 font-bold shrink-0 text-sm">⚠️</span>
-                        <div>
-                          <p className="font-bold text-rose-900">Sähköpostin lähetys epäonnistui / Email Delivery Failed</p>
-                          <p className="opacity-95 text-[11px] mt-0.5 leading-normal">
-                            Teillä on API-avain asetettuna, mutta taustapalvelimen Resend-integraatio palautti virheen:
-                          </p>
-                          <p className="font-mono bg-white p-2.5 rounded-lg mt-1.5 text-[10px] break-all border border-rose-100 text-rose-800 leading-normal">
-                            <strong>Kuvaus: </strong>{emailStatus.error}
-                          </p>
-                          {emailStatus.diagnostics && (
-                            <div className="mt-2 p-2.5 bg-slate-50 border border-slate-200 rounded text-slate-700">
-                              <p className="font-bold text-slate-900 mb-0.5">Vianmääritys (Server Diagnostics):</p>
-                              <ul className="list-disc list-inside space-y-0.5 font-sans leading-tight text-[10px]">
-                                <li>API-avain havaittu: <code>{emailStatus.diagnostics.hasApiKey ? 'Kyllä (Yes)' : 'Ei (No)'}</code></li>
-                                <li>Pituus (Length): <code>{emailStatus.diagnostics.apiKeyLength} merkkiä</code></li>
-                                <li>Alku (Prefix): <code>{emailStatus.diagnostics.apiKeyPrefix}...</code></li>
-                                <li>Yritetyt vastaanottajat: <code>{JSON.stringify(emailStatus.diagnostics.recipientsAttempted)}</code></li>
-                              </ul>
-                            </div>
-                          )}
-                          <p className="mt-3 text-[11px] text-rose-950 leading-normal opacity-95">
-                            <strong>Miksi tämä tapahtuu? (Crucial Troubleshooting):</strong><br />
-                            Resendin ilmaisella kokeilutilillä (Sandbox) voit lähettää sähköposteja <strong>ainoastaan omalle rekisteröintiosoitteellesi</strong> (eli <code>kennedy.nam@gmail.com</code>). <br /><br />
-                            Jos yrität lähettää muihin osoitteisiin kuten <code>info@puhdas-tila.com</code> ilman domainin vahvistusta, Resend estää sen ja antaa virhekoodin 403.<br />
-                            <em>Ratkaisu: Voit määrittää ylläpitäjän sähköpostisaldoksesi Resend-rekisteröintisähköpostisi, tai vahvistaa oman verkkotunnuksesi Resend-hallintatyökalussa!</em>
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Success banner if Web3Forms delivered successfully */}
-                  {emailStatus.provider === 'web3forms' && (
-                    <div className="my-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-left text-emerald-950 text-xs leading-relaxed max-w-md shadow-xs">
-                      <div className="flex items-start gap-2.5">
-                        <span className="text-emerald-600 font-bold shrink-0">✓</span>
-                        <div>
-                          <p className="font-bold text-emerald-900">Sähköposti toimitettu!</p>
-                          <p className="opacity-95 text-[11px] mt-0.5 leading-normal">
-                            Tarjouspyyntö toimitettiin onnistuneesti Web3Forms API-avaimella määritettyyn sähköpostilaatikkoon.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  </div>
 
                   <motion.button
                     onClick={handleReset}

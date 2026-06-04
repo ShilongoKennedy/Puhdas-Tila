@@ -1,4 +1,4 @@
-import { Linkedin, Facebook, Instagram, Mail, Phone, MapPin, Clock } from 'lucide-react';
+import { Linkedin, Facebook, Instagram, Mail, Phone, MapPin, Clock, Star } from 'lucide-react';
 import { Language, translations } from '../translations';
 import Logo from './Logo';
 import { motion } from 'motion/react';
@@ -109,27 +109,46 @@ export default function Footer({ lang, logoStyle, onOpenAdmin }: FooterProps) {
             </p>
 
             {/* Social handles index row */}
-            <div className="flex gap-4">
+            <div className="flex flex-col gap-3 text-left">
+              <div className="flex gap-4">
+                <a 
+                  href="https://share.google/eCXwFCDZ09xq98zIC" 
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-9 h-9 bg-[#F4E185]/10 rounded-full flex items-center justify-center text-[#F4E185] hover:text-[#FFF5C2] hover:bg-[#F4E185]/20 transition-colors focus:outline-none border border-[#F4E185]/20 shadow-xs"
+                  aria-label="Google Business Profile"
+                >
+                  <Star className="w-4 h-4 fill-[#F4E185]" />
+                </a>
+                <a 
+                  href="#" 
+                  className="w-9 h-9 bg-white/5 rounded-full flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 transition-colors focus:outline-none"
+                  aria-label="LinkedIn"
+                >
+                  <Linkedin className="w-4 h-4" />
+                </a>
+                <a 
+                  href="#" 
+                  className="w-9 h-9 bg-white/5 rounded-full flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 transition-colors focus:outline-none"
+                  aria-label="Facebook"
+                >
+                  <Facebook className="w-4 h-4" />
+                </a>
+                <a 
+                  href="#" 
+                  className="w-9 h-9 bg-white/5 rounded-full flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 transition-colors focus:outline-none"
+                  aria-label="Instagram"
+                >
+                  <Instagram className="w-4 h-4" />
+                </a>
+              </div>
               <a 
-                href="#" 
-                className="w-9 h-9 bg-white/5 rounded-full flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 transition-colors focus:outline-none"
-                aria-label="LinkedIn"
+                href="https://share.google/eCXwFCDZ09xq98zIC"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs text-[#95C4A1] hover:text-white transition-colors duration-200 font-semibold group/footer"
               >
-                <Linkedin className="w-4 h-4" />
-              </a>
-              <a 
-                href="#" 
-                className="w-9 h-9 bg-white/5 rounded-full flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 transition-colors focus:outline-none"
-                aria-label="Facebook"
-              >
-                <Facebook className="w-4 h-4" />
-              </a>
-              <a 
-                href="#" 
-                className="w-9 h-9 bg-white/5 rounded-full flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 transition-colors focus:outline-none"
-                aria-label="Instagram"
-              >
-                <Instagram className="w-4 h-4" />
+                <span>Google Business Profile ↗</span>
               </a>
             </div>
           </div>
