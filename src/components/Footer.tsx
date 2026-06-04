@@ -128,7 +128,9 @@ export default function Footer({ lang, logoStyle, onOpenAdmin }: FooterProps) {
                   <Linkedin className="w-4 h-4" />
                 </a>
                 <a 
-                  href="#" 
+                  href="https://facebook.com/1115116918357997" 
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="w-9 h-9 bg-white/5 rounded-full flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 transition-colors focus:outline-none"
                   aria-label="Facebook"
                 >
