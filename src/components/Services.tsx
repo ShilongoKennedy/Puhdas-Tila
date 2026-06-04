@@ -428,12 +428,7 @@ export default function Services({ lang, onSelectService }: ServicesProps) {
                     }
                   }}
                 >
-                  {/* Subtle, beautiful first-time custom promo tag */}
-                  {(service.id === "toimistosiivous" || service.id === "kertatilaus") && (
-                    <span className="absolute top-6 right-6 bg-emerald-50 text-emerald-800 text-[10px] font-bold px-2.5 py-1 rounded-full border border-emerald-100 select-none uppercase tracking-wider">
-                      {lang === 'fi' ? '1. siivous ILMAINEN! 🎁' : '1st day FREE! 🎁'}
-                    </span>
-                  )}
+
 
                   <div>
                     {/* Icon Wrapper badge */}

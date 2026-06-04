@@ -348,12 +348,12 @@ export default function BookingForm({ lang, prefilledService = '', prefilledSize
                     <span className="text-xl shrink-0 select-none">🤝</span>
                     <div className="text-xs">
                       <p className="font-extrabold text-[#1B4332] mb-0.5">
-                        {lang === 'fi' ? 'Ihmiseltä ihmiselle -hinnoittelu' : 'Custom Human-to-Human Pricing'}
+                        {lang === 'fi' ? 'Ihmiseltä ihmiselle -tarjous' : 'Personalized Human-to-Human Quote'}
                       </p>
                       <p className="text-[#3A3A3A] leading-normal font-medium">
                         {lang === 'fi' 
-                          ? 'Koska jokainen liiketila poikkeaa vaatimuksiltaan, asiantuntijamme muodostaa jokaisen tarjouksen henkilökohtaisesti kotiuttamalla parhaat säästöt. Saat meiltä reilun ja tarkan tarjouksen ilman robotteja.' 
-                          : 'Since every commercial environment has distinct needs, our specialist reviews each quote manually to unlock the deepest savings. No automated guesses, just honest human care.'}
+                          ? 'Luomme jokaisen tarjouksen yksilöllisesti tarpeidesi, kuten toimiston koon, siivoustiheyden sekä Airbnb-erikoistoiveiden perusteella. Välitöntä apua varten voit aina myös soittaa meille numeroon +358 40 634 5252 tai lähettää sähköpostia osoitteeseen info@puhdas-tila.com.' 
+                          : 'We craft every quotation individually based on your specific requirements (such as office size, cleaning frequency, and specific Airbnb turnaround needs). For immediate support, you can also call us at +358 40 634 5252 or send an email to info@puhdas-tila.com.'}
                       </p>
                     </div>
                   </div>

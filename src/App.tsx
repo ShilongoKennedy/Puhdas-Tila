@@ -116,12 +116,12 @@ export default function App() {
             setPrefilledSize(size); 
           }} 
         />
+        <Meista lang={lang} />
         <BookingForm 
           lang={lang} 
           prefilledService={prefilledService} 
           prefilledSize={prefilledSize} 
         />
-        <Meista lang={lang} />
       </main>
 
       {/* Semantic Footer segment */}

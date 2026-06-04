@@ -1,4 +1,4 @@
-import { FileText, PhoneCall, Sparkles } from 'lucide-react';
+import { Mail, PhoneCall, Sparkles } from 'lucide-react';
 import { Language, translations } from '../translations';
 import { motion } from 'motion/react';
 
@@ -12,7 +12,7 @@ export default function HowItWorks({ lang }: HowItWorksProps) {
   const steps = [
     {
       number: "01",
-      icon: FileText,
+      icon: Mail,
       title: t.processStep1Title,
       description: t.processStep1Desc,
     },

@@ -1,7 +1,7 @@
 {
   "short_name": "Puhdas Tila",
-  "name": "Puhdas Tila — Toimistosiivous Espoo",
-  "description": "Ammattitason toimistosiivous Espoossa ja pääkaupunkiseudulla ilman sitovia monivuorisia sopimuksia.",
+  "name": "Puhdas Tila — Yritykset & Airbnb-siivous",
+  "description": "Siivouspalvelu yrityksille ja Airbnb-kohteisiin Espoossa ilman sitovia monivuorisia sopimuksia.",
   "icons": [
     {
       "src": "/pwa_icon.png",

@@ -68,12 +68,12 @@ export default function LiveChat({ lang }: LiveChatProps) {
 
   // Suggested Quick Actions that drive high-intent conversions
   const quickQuestions = lang === 'fi' ? [
-    { text: 'Mikä on uuden asiakkaan ilmainen etu? 🎁', query: 'Kertokaa lisää uuden asiakkaan ilmaisesta siivousedusta.' },
+    { text: 'Mitä siivouspalveluita tarjoatte? 🧹', query: 'Mitä kaikkia siivouspalveluita tarjoatte yrityksille ja Airbnb-kohteille?' },
     { text: 'Paljonko säännöllinen siivous maksaa? 💶', query: 'Mikä on toimistosiivouksen tuntiperustainen hinta tai kuukausihinta?' },
     { text: 'Onko teillä pitkiä sitovia sopimuksia? 🗓️', query: 'Miten pitkiä teidän siivoussopimukset ovat? Onko sitoutumispakkoa?' },
     { text: 'Miten varaan ilmaisen katselmuksen? 🤝', query: 'Miten voin varata meille maksuttoman toimiston katselmuksen?' }
   ] : [
-    { text: 'What is the new customer free gift? 🎁', query: 'Tell me about the 100% free first cleaning visit for new customers.' },
+    { text: 'What cleaning services do you offer? 🧹', query: 'What cleaning services do you provide for businesses and Airbnb hosts?' },
     { text: 'How much does regular cleaning cost? 💶', query: 'How much does office cleaning cost per hour or per month?' },
     { text: 'Are there long commitment contracts? 🗓️', query: 'Do you require long-term binding annual cleaning contracts?' },
     { text: 'How do I book a free site visit? 🤝', query: 'How can I schedule a free physical walkthrough of our workspace?' }
@@ -82,8 +82,8 @@ export default function LiveChat({ lang }: LiveChatProps) {
   // Set initial welcome greeting matching language preference
   useEffect(() => {
     const welcomeText = lang === 'fi' 
-      ? 'Hei! Tervetuloa Puhdas Tilan lämpimään asiakaspalveluun. 👋 Meillä jokainen siivouskohde on täysin yksilöllinen, ja tarjoamme aina ihmiseltä ihmiselle räätälöityä, joustavaa henkilökohtaista palvelua kiinteiden automaattihintojen sijaan. Kaikille uusille pääkaupunkiseudun yritysasiakkaille ensimmäinen siivouskerta laadun testaamiseksi on täysin maksuton! Miten voin auttaa sinua tänään?'
-      : 'Hello there! Welcome to Puhdas Tila customer support. 👋 We believe in human-to-human, customized personal service rather than cold electronic numbers. Every workspace is unique, so we tailor our cleaning programs individually to your exact needs. All new corporate clients in the capital area receive their very first cleaning session 100% FREE! How can I assist you today?';
+      ? 'Hei! Tervetuloa Puhdas Tilan lämpimään asiakaspalveluun. 👋 Meillä jokainen siivouskohde on täysin yksilöllinen, ja tarjoamme aina ihmiseltä ihmiselle räätälöityä, joustavaa henkilökohtaista palvelua kiinteiden automaattihintojen sijaan. Miten voin auttaa sinua tänään?'
+      : 'Hello there! Welcome to Puhdas Tila customer support. 👋 We believe in human-to-human, customized personal service rather than cold electronic numbers. Every workspace is unique, so we tailor our cleaning programs individually to your exact needs. How can I assist you today?';
     
     setMessages([
       {
@@ -173,9 +173,9 @@ export default function LiveChat({ lang }: LiveChatProps) {
       setTimeout(() => {
         let fallbackReply = '';
         if (lang === 'fi') {
-          fallbackReply = 'Hei! Uskomme siihen, että jokainen liiketila on täysin uniikki, joten vältämme kiinteitä tai automaattisia yleishintoja. Meillä maksat vain palveluista, joita yrityksesi aidosti tarvitsee — tämä takaa reiluimman ja parhaan lopputuloksen ilman piilokuluja. Ensimmäinen siivouskerta laadun testaamiseksi on täysin MAKSUTON eikä se sido teitä mihinkään! \n\nKoska jokainen tila eroaa pintamateriaaleiltaan, huonejaoltaan ja toiveiltaan, **tarkin ja kilpailukykyisin hinta** muodostuu aina asiantuntijamme kanssa käytävällä lyhyellä puhelinkeskustelulla tai maksuttomalla katselmuksella paikan päällä. Jätä sähköpostiosoitteesi tai puhelinnumerosi sivun loppupään lomakkeelle, niin olemme sinuun yhteydessä hyvin nopeasti räätälöidyn tarjouksen tiimoilta! ✨';
+          fallbackReply = 'Hei! Uskomme siihen, että jokainen liiketila/asunto on täysin uniikki, joten vältämme kankeita kiinteitä tai automaattisia yleishintoja. Meillä maksat vain palveluista, joita kohteessasi aidosti tarvitaan — tämä takaa reiluimman ja parhaan lopputuloksen ilman piilokuluja. \n\nKoska jokainen tila eroaa pintamateriaaleiltaan, huonejaoltaan ja toiveiltaan, **tarkin ja kilpailukykyisin hinta** muodostuu aina asiantuntijamme kanssa käytävällä lyhyellä puhelinkeskustelulla tai maksuttomalla katselmuksella paikan päällä. Jätä sähköpostiosoitteesi tai puhelinnumerosi sivun loppupään lomakkeelle, niin olemme sinuun yhteydessä hyvin nopeasti räätälöidyn tarjouksen tiimoilta! ✨';
         } else {
-          fallbackReply = 'Hello! We believe every commercial space is truly unique, which is why we avoid using rigid, automated, or standard general rates. With us, you only pay for services your business actually needs — ensuring the most fair and customized outcome with zero hidden fees. Plus, your first cleaning session is completely FREE so you can test our quality with zero commitment! \n\nSince every facility differs in surfaces, layout, and specific workflows, the most **accurate and competitive price** is always determined through a brief, free physical site walkthrough or a quick phone touch-base with our specialist. Simply leave your contact details in our form below, and we will get back to you shortly to customize a proposal specifically for you! ✨';
+          fallbackReply = 'Hello! We believe every space is truly unique, which is why we avoid using rigid, automated, or standard general rates. With us, you only pay for services your space actually needs — ensuring the most fair and customized outcome with zero hidden fees. \n\nSince every facility differs in surfaces, layout, and specific workflows, the most **accurate and competitive price** is always determined through a brief, free physical site walkthrough or a quick phone touch-base with our specialist. Simply leave your contact details in our form below, and we will get back to you shortly to customize a proposal specifically for you! ✨';
         }
 
         setMessages(prev => [...prev, {
