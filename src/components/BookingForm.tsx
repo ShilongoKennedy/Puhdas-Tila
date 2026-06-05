@@ -72,9 +72,6 @@ export default function BookingForm({ lang, prefilledService = '', prefilledSize
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = t.emailError;
     }
-    if (!formData.notes.trim()) {
-      newErrors.notes = t.requiredError;
-    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -417,7 +414,6 @@ export default function BookingForm({ lang, prefilledService = '', prefilledSize
                       className={`w-full px-4 py-3 rounded-lg border text-sm transition-colors duration-200 outline-none resize-none ${
                         errors.notes ? 'border-[#C0392B] focus:border-[#C0392B]' : 'border-[#E0E4DC] focus:border-[#1B4332]'
                       }`}
-                      required
                     />
                     {errors.notes && (
                       <p className="text-[#C0392B] text-xs mt-1.5 font-medium">{errors.notes}</p>
