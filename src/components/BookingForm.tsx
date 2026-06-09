@@ -1,5 +1,5 @@
 import { useState, ChangeEvent, FormEvent, useEffect } from 'react';
-import { Mail, Phone, MapPin, Lock, Loader2, ArrowRight } from 'lucide-react';
+import { Mail, Phone, MapPin, Lock, Loader2, ArrowRight, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { BookingFormData, FormErrorState } from '../types';
 import { Language, translations } from '../translations';
 import { motion } from 'motion/react';
@@ -13,6 +13,7 @@ interface BookingFormProps {
 
 export default function BookingForm({ lang, prefilledService = '', prefilledSize = '' }: BookingFormProps) {
   const t = translations[lang];
+  const [formStep, setFormStep] = useState(1);
 
   const [formData, setFormData] = useState<BookingFormData>({
     companyName: '',
@@ -338,114 +339,337 @@ export default function BookingForm({ lang, prefilledService = '', prefilledSize
               
               {/* Form viewport with clean React multi-state toggle */}
               {!isSubmitted ? (
-                <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+                <form 
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (formStep === 1) {
+                      // Validate Step 1 contact fields first
+                      const newErrors: FormErrorState = {};
+                      if (!formData.contactName.trim()) {
+                        newErrors.contactName = t.requiredError;
+                      }
+                      if (!formData.email.trim()) {
+                        newErrors.email = t.requiredError;
+                      } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+                        newErrors.email = t.emailError;
+                      }
+                      if (Object.keys(newErrors).length > 0) {
+                        setErrors(newErrors);
+                        return;
+                      }
+                      setFormStep(2);
+                    } else {
+                      handleSubmit(e);
+                    }
+                  }} 
+                  className="space-y-6" 
+                  noValidate
+                >
                   
-                  {/* Human Consultation Focus Ribbon */}
-                  <div className="p-4 bg-emerald-50/70 border border-emerald-200/80 rounded-xl flex gap-3 text-left">
-                    <span className="text-xl shrink-0 select-none">🤝</span>
-                    <div className="text-xs">
-                      <p className="font-extrabold text-[#1B4332] mb-0.5">
-                        {lang === 'fi' ? 'Ihmiseltä ihmiselle -tarjous' : 'Personalized Human-to-Human Quote'}
-                      </p>
-                      <p className="text-[#3A3A3A] leading-normal font-medium">
-                        {lang === 'fi' 
-                          ? 'Luomme jokaisen tarjouksen yksilöllisesti tarpeidesi, kuten toimiston koon, siivoustiheyden sekä Airbnb-erikoistoiveiden perusteella. Välitöntä apua varten voit aina myös soittaa meille numeroon +358 40 634 5252 tai lähettää sähköpostia osoitteeseen info@puhdas-tila.com.' 
-                          : 'We craft every quotation individually based on your specific requirements (such as office size, cleaning frequency, and specific Airbnb turnaround needs). For immediate support, you can also call us at +358 40 634 5252 or send an email to info@puhdas-tila.com.'}
-                      </p>
+                  {/* Progressive Disclosure Interactive Header Progress Bar */}
+                  <div className="mb-6 flex items-center justify-between border-b border-[#F2F4F0] pb-6">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                        formStep >= 1 ? 'bg-[#1B4332] text-white' : 'bg-[#E0E4DC] text-[#7A7A7A]'
+                      }`}>
+                        {formStep > 1 ? <Check className="w-3.5 h-3.5 stroke-[2.5]" /> : '1'}
+                      </div>
+                      <span className={`text-xs font-extrabold uppercase tracking-wide transition-colors ${
+                        formStep === 1 ? 'text-[#1B4332]' : 'text-[#7A7A7A]'
+                      }`}>
+                        {lang === 'fi' ? 'Yhteystiedot' : 'Contact Info'}
+                      </span>
+                    </div>
+
+                    <div className="flex-1 mx-4 h-[2px] bg-[#E0E4DC] relative">
+                      <div className="absolute top-0 left-0 h-full bg-[#1B4332] transition-all duration-300" style={{ width: formStep === 2 ? '100%' : '0%' }} />
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                        formStep === 2 ? 'bg-[#1B4332] text-white' : 'bg-[#E0E4DC] text-[#7A7A7A]'
+                      }`}>
+                        2
+                      </div>
+                      <span className={`text-xs font-extrabold uppercase tracking-wide transition-colors ${
+                        formStep === 2 ? 'text-[#1B4332]' : 'text-[#7A7A7A]'
+                      }`}>
+                        {lang === 'fi' ? 'Kohteen tiedot' : 'Details'}
+                      </span>
                     </div>
                   </div>
-                  
-                  {/* Field 1: Name & Company */}
-                  <div>
-                    <label htmlFor="contactName" className="block text-sm font-bold text-[#1A1A1A] mb-1.5">
-                      {t.fieldContact}
-                    </label>
-                    <input
-                      type="text"
-                      id="contactName"
-                      name="contactName"
-                      value={formData.contactName}
-                      onChange={handleInputChange}
-                      placeholder={t.fieldContactPl}
-                      className={`w-full px-4 py-3 rounded-lg border text-sm transition-colors duration-200 outline-none ${
-                        errors.contactName ? 'border-[#C0392B] focus:border-[#C0392B]' : 'border-[#E0E4DC] focus:border-[#1B4332]'
-                      }`}
-                      required
-                    />
-                    {errors.contactName && (
-                      <p className="text-[#C0392B] text-xs mt-1.5 font-medium">{errors.contactName}</p>
-                    )}
-                  </div>
 
-                  {/* Field 2: Email Address */}
-                  <div>
-                    <label htmlFor="email" className="block text-sm font-bold text-[#1A1A1A] mb-1.5">
-                      {t.fieldEmail}
-                    </label>
-                    <input
-                      type="email"
-                      id="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      placeholder={t.fieldEmailPl}
-                      className={`w-full px-4 py-3 rounded-lg border text-sm transition-colors duration-200 outline-none ${
-                        errors.email ? 'border-[#C0392B] focus:border-[#C0392B]' : 'border-[#E0E4DC] focus:border-[#1B4332]'
-                      }`}
-                      required
-                    />
-                    {errors.email && (
-                      <p className="text-[#C0392B] text-xs mt-1.5 font-medium">{errors.email}</p>
-                    )}
-                  </div>
+                  {/* STEP 1: CONTACT DETAILS VIEW */}
+                  {formStep === 1 && (
+                    <motion.div 
+                      className="space-y-6"
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      {/* Human Consultation Focus Ribbon */}
+                      <div className="p-4 bg-emerald-50/70 border border-emerald-200/80 rounded-xl flex gap-3 text-left">
+                        <span className="text-xl shrink-0 select-none">🤝</span>
+                        <div className="text-xs">
+                          <p className="font-extrabold text-[#1B4332] mb-0.5">
+                            {lang === 'fi' ? 'Sujuva ja nopea yhteydenotto' : 'Pragmatic & Speedy Response'}
+                          </p>
+                          <p className="text-[#3A3A3A] leading-normal font-medium">
+                            {lang === 'fi' 
+                              ? 'Luomme jokaisen tarjouksen yksilöllisesti tarpeidesi, kuten toimiston koon, siivoustiheyden sekä Airbnb-erikoistoiveiden perusteella. Välitöntä apua varten voit aina myös soittaa meille numeroon +358 40 634 5252 tai lähettää sähköpostia osoitteeseen info@puhdas-tila.com.' 
+                              : 'We craft every quotation individually based on your specific requirements (such as office size, cleaning frequency, and specific Airbnb turnaround needs). For immediate support, you can also call us at +358 40 634 5252 or send an email to info@puhdas-tila.com.'}
+                          </p>
+                        </div>
+                      </div>
 
-                  {/* Field 3: What do you need */}
-                  <div>
-                    <label htmlFor="notes" className="block text-sm font-bold text-[#1A1A1A] mb-1.5">
-                      {t.fieldNotes}
-                    </label>
-                    <textarea
-                      id="notes"
-                      name="notes"
-                      value={formData.notes}
-                      onChange={handleInputChange}
-                      rows={5}
-                      placeholder={t.fieldNotesPl}
-                      className={`w-full px-4 py-3 rounded-lg border text-sm transition-colors duration-200 outline-none resize-none ${
-                        errors.notes ? 'border-[#C0392B] focus:border-[#C0392B]' : 'border-[#E0E4DC] focus:border-[#1B4332]'
-                      }`}
-                    />
-                    {errors.notes && (
-                      <p className="text-[#C0392B] text-xs mt-1.5 font-medium">{errors.notes}</p>
-                    )}
-                  </div>
+                      {/* Field 1: Contact Name with Dynamic Checkmark validation feedback */}
+                      <div>
+                        <div className="flex justify-between items-baseline mb-1.5">
+                          <label htmlFor="contactName" className="block text-sm font-bold text-[#1A1A1A]">
+                            {t.fieldContact}
+                          </label>
+                          {formData.contactName.trim().length > 2 && (
+                            <span className="inline-flex items-center text-xs text-emerald-600 font-bold gap-1">
+                              <Check className="w-3.5 h-3.5 stroke-[3]" />
+                              {lang === 'fi' ? 'Valmis' : 'Ok'}
+                            </span>
+                          )}
+                        </div>
+                        <input
+                          type="text"
+                          id="contactName"
+                          name="contactName"
+                          value={formData.contactName}
+                          onChange={handleInputChange}
+                          placeholder={t.fieldContactPl}
+                          className={`w-full px-4 py-3 rounded-lg border text-sm transition-all duration-200 outline-none ${
+                            errors.contactName 
+                              ? 'border-[#C0392B] focus:border-[#C0392B] bg-red-50/10' 
+                              : formData.contactName.trim().length > 2
+                              ? 'border-emerald-600 focus:border-emerald-700 bg-emerald-50/5'
+                              : 'border-[#E0E4DC] focus:border-[#1B4332]'
+                          }`}
+                          required
+                        />
+                        {errors.contactName && (
+                          <p className="text-[#C0392B] text-xs mt-1.5 font-medium">{errors.contactName}</p>
+                        )}
+                      </div>
 
-                  {/* Privacy note warning */}
-                  <div className="flex gap-2.5 items-start text-xs text-[#7A7A7A] mt-2">
-                    <Lock className="w-4 h-4 text-[#95C4A1] shrink-0 mt-0.5" aria-hidden="true" />
-                    <span>{t.privacyWarning}</span>
-                  </div>
+                      {/* Field 2: Company / Airbnb Name (Optional) */}
+                      <div>
+                        <label htmlFor="companyName" className="block text-sm font-bold text-[#1A1A1A] mb-1.5">
+                          {t.fieldCompany}
+                        </label>
+                        <input
+                          type="text"
+                          id="companyName"
+                          name="companyName"
+                          value={formData.companyName}
+                          onChange={handleInputChange}
+                          placeholder={t.fieldCompanyPl}
+                          className="w-full px-4 py-3 rounded-lg border border-[#E0E4DC] focus:border-[#1B4332] text-sm transition-colors duration-200 outline-none bg-white"
+                        />
+                      </div>
 
-                  {/* Submit driving CTA */}
-                  <motion.button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="w-full flex items-center justify-center gap-2 bg-[#1B4332] text-white font-bold py-4 px-6 rounded-full transition-all duration-300 hover:bg-[#2D6A4F] focus:outline-none disabled:bg-[#7A7A7A] disabled:cursor-not-allowed cursor-pointer"
-                    whileHover={{ scale: 1.01 }}
-                    whileTap={{ scale: 0.99 }}
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        {t.submittingText}
-                      </>
-                    ) : (
-                      <>
-                        {t.submitBtn}
-                        <ArrowRight className="w-5 h-5 shrink-0" />
-                      </>
-                    )}
-                  </motion.button>
+                      {/* Field 3: Email Address with dynamic validation checks */}
+                      <div>
+                        <div className="flex justify-between items-baseline mb-1.5">
+                          <label htmlFor="email" className="block text-sm font-bold text-[#1A1A1A]">
+                            {t.fieldEmail}
+                          </label>
+                          {/\S+@\S+\.\S+/.test(formData.email) && (
+                            <span className="inline-flex items-center text-xs text-emerald-600 font-bold gap-1">
+                              <Check className="w-3.5 h-3.5 stroke-[3]" />
+                              {lang === 'fi' ? 'Sähköposti oikein' : 'Email verified'}
+                            </span>
+                          )}
+                        </div>
+                        <input
+                          type="email"
+                          id="email"
+                          name="email"
+                          value={formData.email}
+                          onChange={handleInputChange}
+                          placeholder={t.fieldEmailPl}
+                          className={`w-full px-4 py-3 rounded-lg border text-sm transition-all duration-200 outline-none ${
+                            errors.email 
+                              ? 'border-[#C0392B] focus:border-[#C0392B] bg-red-50/10' 
+                              : /\S+@\S+\.\S+/.test(formData.email)
+                              ? 'border-emerald-600 focus:border-emerald-700 bg-emerald-50/5'
+                              : 'border-[#E0E4DC] focus:border-[#1B4332]'
+                          }`}
+                          required
+                        />
+                        {errors.email && (
+                          <p className="text-[#C0392B] text-xs mt-1.5 font-medium">{errors.email}</p>
+                        )}
+                      </div>
+
+                      {/* Field 4: Phone Number (Optional) */}
+                      <div>
+                        <label htmlFor="phone" className="block text-sm font-bold text-[#1A1A1A] mb-1.5">
+                          {lang === 'fi' ? 'Puhelinnumero' : 'Phone Number'}
+                        </label>
+                        <input
+                          type="tel"
+                          id="phone"
+                          name="phone"
+                          value={formData.phone}
+                          onChange={handleInputChange}
+                          placeholder="+358 ..."
+                          className="w-full px-4 py-3 rounded-lg border border-[#E0E4DC] focus:border-[#1B4332] text-sm transition-colors duration-200 outline-none bg-white"
+                        />
+                      </div>
+
+                      {/* Moving Forward CTA */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newErrors: FormErrorState = {};
+                          if (!formData.contactName.trim()) {
+                            newErrors.contactName = t.requiredError;
+                          }
+                          if (!formData.email.trim()) {
+                            newErrors.email = t.requiredError;
+                          } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+                            newErrors.email = t.emailError;
+                          }
+                          if (Object.keys(newErrors).length > 0) {
+                            setErrors(newErrors);
+                          } else {
+                            setErrors({});
+                            setFormStep(2);
+                          }
+                        }}
+                        className="w-full flex items-center justify-center gap-2 bg-[#1B4332] text-white font-bold py-4 px-6 rounded-full transition-all duration-300 hover:bg-[#2D6A4F] text-sm cursor-pointer"
+                      >
+                        <span>{lang === 'fi' ? 'Jatka kohteen tietoihin' : 'Continue to details'}</span>
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </motion.div>
+                  )}
+
+                  {/* STEP 2: CLEANING SPECIFICATIONS VIEW */}
+                  {formStep === 2 && (
+                    <motion.div 
+                      className="space-y-6"
+                      initial={{ opacity: 0, x: 10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      {/* Service Type Pick dropdown */}
+                      <div>
+                        <label htmlFor="serviceType" className="block text-sm font-bold text-[#1A1A1A] mb-1.5">
+                          {t.fieldServiceType}
+                        </label>
+                        <select
+                          id="serviceType"
+                          name="serviceType"
+                          value={formData.serviceType}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-3 rounded-lg border border-[#E0E4DC] focus:border-[#1B4332] text-sm bg-white outline-none"
+                        >
+                          <option value="">{t.fieldServiceChoose}</option>
+                          <option value="kertatilaus">{t.fieldServiceOnetime}</option>
+                          <option value="kuukausi">{t.fieldServiceRec}</option>
+                          <option value="perus_lahto">{t.fieldServiceDeep}</option>
+                          <option value="raataloity">{t.fieldServiceCustom}</option>
+                          <option value="muu">{t.fieldServiceOther}</option>
+                        </select>
+                      </div>
+
+                      {/* Office Area Size Choose dropdown */}
+                      <div>
+                        <label htmlFor="officeSize" className="block text-sm font-bold text-[#1A1A1A] mb-1.5">
+                          {t.fieldSize}
+                        </label>
+                        <select
+                          id="officeSize"
+                          name="officeSize"
+                          value={formData.officeSize}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-3 rounded-lg border border-[#E0E4DC] focus:border-[#1B4332] text-sm bg-white outline-none"
+                        >
+                          <option value="">{t.fieldSizeChoose}</option>
+                          <option value="pieni">{t.fieldSizeSmall}</option>
+                          <option value="keski">{t.fieldSizeMedium}</option>
+                          <option value="suuri">{t.fieldSizeLarge}</option>
+                          <option value="jatti">{t.fieldSizeJumbo}</option>
+                        </select>
+                      </div>
+
+                      {/* Desired Start Date calendar input */}
+                      <div>
+                        <label htmlFor="startDate" className="block text-sm font-bold text-[#1A1A1A] mb-1.5">
+                          {formData.serviceType === 'kertatilaus' ? t.fieldDateOnetime : t.fieldDateRec}
+                        </label>
+                        <input
+                          type="date"
+                          id="startDate"
+                          name="startDate"
+                          value={formData.startDate}
+                          onChange={handleInputChange}
+                          min={new Date().toISOString().split('T')[0]}
+                          className="w-full px-4 py-3 rounded-lg border border-[#E0E4DC] focus:border-[#1B4332] text-sm outline-none bg-white"
+                        />
+                      </div>
+
+                      {/* Notes & Special Needs Area */}
+                      <div>
+                        <label htmlFor="notes" className="block text-sm font-bold text-[#1A1A1A] mb-1.5">
+                          {t.fieldNotes}
+                        </label>
+                        <textarea
+                          id="notes"
+                          name="notes"
+                          value={formData.notes}
+                          onChange={handleInputChange}
+                          rows={4}
+                          placeholder={t.fieldNotesPl}
+                          className="w-full px-4 py-3 rounded-lg border border-[#E0E4DC] focus:border-[#1B4332] text-sm transition-colors duration-200 outline-none resize-none"
+                        />
+                      </div>
+
+                      {/* Privacy alert notice */}
+                      <div className="flex gap-2.5 items-start text-xs text-[#7A7A7A] mt-2">
+                        <Lock className="w-4 h-4 text-[#95C4A1] shrink-0 mt-0.5" aria-hidden="true" />
+                        <span>{t.privacyWarning}</span>
+                      </div>
+
+                      {/* Back & Submit CTA triggers row */}
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setFormStep(1)}
+                          className="w-full sm:w-1/3 flex items-center justify-center gap-2 border-2 border-[#1B4332] text-[#1B4332] hover:bg-[#FAFAF7] font-bold py-3.5 px-4 rounded-full transition-colors text-sm cursor-pointer"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                          <span>{lang === 'fi' ? 'Takaisin' : 'Back'}</span>
+                        </button>
+
+                        <motion.button
+                          type="submit"
+                          disabled={isSubmitting}
+                          className="w-full sm:flex-1 flex items-center justify-center gap-2 bg-[#1B4332] text-white font-bold py-4 px-6 rounded-full transition-all duration-300 hover:bg-[#2D6A4F] focus:outline-none disabled:bg-[#7A7A7A] disabled:cursor-not-allowed text-sm cursor-pointer"
+                          whileHover={{ scale: 1.01 }}
+                          whileTap={{ scale: 0.99 }}
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <Loader2 className="w-5 h-5 animate-spin" />
+                              {t.submittingText}
+                            </>
+                          ) : (
+                            <>
+                              {t.submitBtn}
+                              <ArrowRight className="w-5 h-5 shrink-0" />
+                            </>
+                          )}
+                        </motion.button>
+                      </div>
+                    </motion.div>
+                  )}
                 </form>
               ) : (
                 

@@ -30,6 +30,7 @@ const modalTranslations = {
 export default function Services({ lang, onSelectService }: ServicesProps) {
   const t = translations[lang];
   const [selectedService, setSelectedService] = useState<any | null>(null);
+  const [activeTab, setActiveTab] = useState<'all' | 'regular' | 'onetime'>('all');
 
   // Esc key closes modal
   useEffect(() => {
@@ -388,11 +389,41 @@ export default function Services({ lang, onSelectService }: ServicesProps) {
             </p>
           </motion.div>
 
+          {/* Elegant Service Category Filter Tabs */}
+          <div className="flex flex-wrap justify-center gap-2.5 mb-12 max-w-xl mx-auto">
+            {[
+              { id: 'all', fi: 'Kaikki palvelut', en: 'All Services' },
+              { id: 'regular', fi: 'Sopimussiivoukset', en: 'Regular Contracts' },
+              { id: 'onetime', fi: 'Kerta- & erikoissiivoukset', en: 'One-Time & Special' }
+            ].map(tab => (
+              <motion.button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`text-xs sm:text-sm font-bold px-5 py-3 rounded-full border transition-all cursor-pointer ${
+                  activeTab === tab.id
+                    ? 'bg-[#1B4332] border-[#1B4332] text-white shadow-md'
+                    : 'bg-white border-[#E0E4DC] text-[#4A4A4A] hover:border-[#1B4332] hover:text-[#1B4332]'
+                }`}
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+              >
+                {lang === 'fi' ? tab.fi : tab.en}
+              </motion.button>
+            ))}
+          </div>
+
           {/* Services Cards Grid Layout */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-[960px] mx-auto">
-            {servicesDetailed.map((service, index) => {
-              const IconComponent = service.icon;
-              return (
+            {servicesDetailed
+              .filter(service => {
+                if (activeTab === 'all') return true;
+                if (activeTab === 'regular') return service.id === 'toimistosiivous' || service.id === 'raataloity';
+                if (activeTab === 'onetime') return service.id === 'kertatilaus' || service.id === 'perussiivous';
+                return true;
+              })
+              .map((service, index) => {
+                const IconComponent = service.icon;
+                return (
                 <motion.div
                   key={service.id}
                   onClick={() => setSelectedService(service)}

@@ -15,6 +15,8 @@ import Meista from './components/Meista';
 import Footer from './components/Footer';
 import AdminPanel from './components/AdminPanel';
 import LiveChat from './components/LiveChat';
+import FloatingActions from './components/FloatingActions';
+import CookieConsent from './components/CookieConsent';
 import { useIntersectionObserver } from './hooks/useIntersectionObserver';
 import { Language } from './translations';
 
@@ -134,6 +136,12 @@ export default function App() {
 
       {/* Floating Interactive Live Chat Assistant widget */}
       <LiveChat lang={lang} />
+
+      {/* Persistent Sticky Contact Actions and Back to Top Trigger */}
+      <FloatingActions lang={lang} />
+
+      {/* Non-intrusive Cookie Consent Banner */}
+      <CookieConsent lang={lang} />
     </div>
   );
 }
